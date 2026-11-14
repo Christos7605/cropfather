@@ -1,0 +1,52 @@
+# Dependencies
+/node_modules
+/web/node_modules
+/.pnp
+.pnp.js
+
+# Backend 
+/backend/venv
+/backend/useful_data/EC15_2018.tif
+
+# Web
+/web/venv
+
+# Testing / Python
+/venv
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Production build outputs
+/web/dist
+/dist
+
+# Environment variables & secrets (CRITICAL)
+.env
+.env.local
+.env.*.local
+/credentials
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+
+field_shift_plan.md
+# Experiments: downloaded layers and intermediate results
+/backend/experiments/cache
+/backend/experiments/.venv
+/backend/experiments/data/raw/*
+/backend/experiments/data/interim/*
+/backend/experiments/data/processed/*
+/backend/experiments/mlruns
+/backend/experiments/mlartifacts
+/backend/experiments/mlruns.db
+/backend/experiments/models
