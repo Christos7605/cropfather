@@ -6,7 +6,12 @@ import { useLanguage } from '../context/LanguageContext';
 import { describeError, listMyFields, type FieldRecord } from '../lib/fields';
 import { fieldPath, surveyProgress } from '../lib/fieldStatus';
 import { isFarmQuestionnaireComplete, loadFarmResponse } from '../lib/questionnaire';
-import { loadRunningPrediction, saveRunningPrediction, type RunningPrediction } from '../lib/prediction';
+import {
+  loadRunningPrediction,
+  recordPredictionRequest,
+  saveRunningPrediction,
+  type RunningPrediction,
+} from '../lib/prediction';
 
 export const Prediction: React.FC = () => {
   const { user } = useAuth();
@@ -18,6 +23,7 @@ export const Prediction: React.FC = () => {
   const [farmReady, setFarmReady] = useState(false);
   const [running, setRunning] = useState<RunningPrediction | null>(null);
   const [loading, setLoading] = useState(true);
+  const [startingId, setStartingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -48,11 +54,19 @@ export const Prediction: React.FC = () => {
   const ha = (value: number | null) =>
     value == null ? '–' : value.toLocaleString(locale, { maximumFractionDigits: 2 });
 
-  const start = (field: FieldRecord) => {
-    if (!userId || !farmReady || running) return;
+  const start = async (field: FieldRecord) => {
+    if (!userId || !farmReady || running || startingId) return;
     if (surveyProgress(field).state !== 'done') return;
-    saveRunningPrediction(userId, field.id);
-    navigate(`/prediction/fields/${field.id}`);
+    setStartingId(field.id);
+    setError(null);
+    try {
+      await recordPredictionRequest(field.id);
+      saveRunningPrediction(userId, field.id);
+      navigate(`/prediction/fields/${field.id}`);
+    } catch (err: unknown) {
+      setError(describeError(err, t));
+      setStartingId(null);
+    }
   };
 
   const runningField = fields.find((field) => field.id === running?.fieldId);
@@ -114,7 +128,7 @@ export const Prediction: React.FC = () => {
                   const survey = surveyProgress(field);
                   const ready = survey.state === 'done';
                   const isRunning = running?.fieldId === field.id;
-                  const canStart = farmReady && ready && !running;
+                  const canStart = farmReady && ready && !running && !startingId;
                   return (
                     <li key={field.id} className="px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-4">
                       <div className="min-w-0 flex-1 space-y-1">

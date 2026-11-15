@@ -10,13 +10,20 @@
 -- The answers are already stored as JSON on farmer_questionnaire_responses and
 -- questionnaire_responses. This view only reads them. Drafts are included.
 --
--- coords.start / coords.end are the same window for every field for now.
--- coords.max_cloud is always 15. The ring is the outer boundary, [lon, lat],
--- without the repeated closing point.
+-- coords.start stays 2023-07-01. coords.end is the day the farmer pressed
+-- Predict for this field, or 2023-07-31 until they have. coords.max_cloud
+-- is always 15. The ring is the outer boundary, [lon, lat], without the
+-- repeated closing point.
 --
 -- Run after 20261042_policy_read.sql. Idempotent.
 
 begin;
+
+alter table public.fields
+  add column if not exists prediction_requested_on date;
+
+comment on column public.fields.prediction_requested_on is
+  'Calendar day the farmer last pressed Predict for this field. model_data.coords.end uses it.';
 
 create or replace view public.model_data
 with (security_invoker = true) as
@@ -113,7 +120,7 @@ select
       ), '[]'::jsonb)
     )),
     'start', '2023-07-01',
-    'end', '2023-07-31',
+    'end', coalesce(to_char(f.prediction_requested_on, 'YYYY-MM-DD'), '2023-07-31'),
     'max_cloud', 15
   ) as coords
 from public.fields f;

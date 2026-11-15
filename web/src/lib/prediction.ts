@@ -2,7 +2,26 @@
 // or the four results are shown. The timed steps stand in for the NDVI check and the
 // prediction model; see docs/prediction-pipeline.md for the calls that will replace them.
 
+import { supabase } from './supabase';
+
 const keyFor = (userId: string) => `fieldshift.prediction.${userId}`;
+
+/** Local calendar day as YYYY-MM-DD, the same shape as model_data.coords.end. */
+export function localDateStamp(now = new Date()): string {
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+/** Remember the day this field was sent for prediction. model_data.coords.end reads it. */
+export async function recordPredictionRequest(fieldId: string): Promise<void> {
+  const { error } = await supabase
+    .from('fields')
+    .update({ prediction_requested_on: localDateStamp() })
+    .eq('id', fieldId);
+  if (error) throw new Error(error.message);
+}
 
 // Placeholder waits. The first NDVI wait always ends in the vegetation warning.
 // Confirming the field is empty continues that step, then the prediction step runs.
