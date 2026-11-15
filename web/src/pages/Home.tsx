@@ -120,7 +120,7 @@ export const Home: React.FC = () => {
   return (
     <div className="cf-home min-h-screen flex flex-col justify-between selection:bg-cf-hero selection:text-cf-text">
       <header className={SITE_HEADER_CLASS}>
-        <div className="max-w-[1440px] w-full mx-auto flex items-center justify-between">
+        <div className="w-full flex items-center justify-between">
           <Link to="/" className="flex items-center gap-3 group cursor-pointer">
             <BrandMark />
             <span className="cf-brand-title text-xl sm:text-2xl text-cf-text tracking-tight">
