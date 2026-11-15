@@ -27,6 +27,16 @@ What happens, per request (several fields are processed together):
   4. The model gives EC1:5 as a range (low / most likely / high, 80 % range) and the chance
      that the field is elevated (> 0.6 dS/m).
   5. crops.py turns that into expected yield and a verdict for every crop.
+  6. Strict mode (default): every crop is judged at a "strict" salinity and kept only if it
+     still gives at least STRICT_MIN_YIELD % of its full yield there; the others are moved to
+     "excluded_crops" with the reason. The strict salinity is the HIGH end of the range, raised:
+       * if the chance of an elevated field is >= STRICT_ELEVATED_CHANCE, to at least what an
+         elevated field (EC1:5 0.6 dS/m) means for this soil - the model underestimates salty
+         fields, so the range alone is not trusted there;
+       * within STRICT_COAST_KM of the sea, by STRICT_COAST_MARGIN - the model is weakest there.
+     A crop with no salinity data can't be confirmed safe, so strict mode excludes it.
+     A soil test (measured=...) is trusted as it is: only its high value is used.
+     Pass strict=False (or --lenient) to keep every crop.
 
 Settings: Earth Engine project from --project, gee_project=..., or the SALINITY_GEE_PROJECT
 environment variable.
@@ -48,12 +58,16 @@ import pandas as pd
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import salinity_model as sm  # noqa: E402
-from crops import crop_table  # noqa: E402
+from crops import crop_table, ec15_to_ece, yield_pct  # noqa: E402
 from rename_columns import RENAME  # noqa: E402
 
 MODEL_PATH = HERE / "models" / "salinity_model.joblib"
 MAX_MISSING_WINDOW = 0.5        # full model only if at least half of its 90/60-day features arrived
 STATIC_SCRIPTS = ["elevation", "soil"]
+STRICT_MIN_YIELD = 90.0         # strict mode: % of full yield a crop must keep at the strict salinity
+STRICT_ELEVATED_CHANCE = 0.20   # from this chance of an elevated field, judge at least at an elevated value
+STRICT_COAST_KM = 5.0           # fields this close to the sea ...
+STRICT_COAST_MARGIN = 1.25      # ... are judged at 25 % more salt than the high value
 TO_NEW = {old: new for old, (new, _) in RENAME.items()}
 
 _BUNDLE = None
@@ -157,14 +171,52 @@ def measured_range(measured):
     return unit, rng
 
 
+def strict_salinity(table, prob, dist, clay, ph, measured):
+    """ECe (dS/m) at which strict mode judges the crops, and why."""
+    ece, why = table["ece_high"], ["high end of the range"]
+    if measured:
+        return ece, "high end of the soil test"
+    if prob is not None and prob >= STRICT_ELEVATED_CHANCE:
+        elevated = ec15_to_ece(sm.ELEVATED_MS / 100, clay, ph, bool(table.get("likely_gypsum")))
+        if elevated > ece:
+            ece = elevated
+            why = [f"{prob:.0%} chance of an elevated field: judged as one (EC1:5 0.6 dS/m)"]
+    if dist is not None and not pd.isna(dist) and dist <= STRICT_COAST_KM:
+        ece *= STRICT_COAST_MARGIN
+        why.append(f"+{STRICT_COAST_MARGIN - 1:.0%} because the field is {float(dist):.1f} km from the sea")
+    return round(ece, 2), "; ".join(why)
+
+
+def strict_filter(rows, strict_ece, min_yield=STRICT_MIN_YIELD):
+    """Split the crop rows into (kept, excluded) by the yield at the strict salinity.
+    A crop with no salinity data cannot be confirmed safe, so it is excluded."""
+    kept, excluded = [], []
+    for r in rows:
+        a, b = r.get("salt_limit_ece"), r.get("yield_loss_per_dS_m")
+        if a is None or b is None:
+            excluded.append({**r, "yield_strict": None,
+                             "excluded_because": "no salinity data - can't be confirmed safe"})
+            continue
+        y = round(yield_pct(strict_ece, a, b), 1)
+        if y < min_yield:
+            excluded.append({**r, "yield_strict": y,
+                             "excluded_because": f"only {y:.1f}% of full yield at ECe {strict_ece} dS/m "
+                                                 f"(needs {min_yield:.0f}%)"})
+        else:
+            kept.append({**r, "yield_strict": y})
+    return kept, excluded
+
+
 def predict_field(request, gee_project=None, model="auto", measured=None, include_features=False,
-                  model_path=MODEL_PATH, verbose=True):
+                  model_path=MODEL_PATH, verbose=True, strict=True, min_yield=STRICT_MIN_YIELD):
     """Salinity range and crop verdicts for every field in the request.
 
     request   dict or path to the JSON (features[].coords, end, optional start / max_cloud)
     model     "auto" (by end date), "full" or "static"
     measured  optional {"value": 3.2, "unit": "ECe" | "EC1:5" | "EC1:5_mS_m"} - a soil test of
               the field; it replaces the model for every field of the request
+    strict    True (default): drop crops that fall below min_yield % of full yield at the HIGH
+              end of the salinity range; they are listed in "excluded_crops" with the reason
     Returns {"model": ..., "fields": [ {...}, ... ]}
     """
     log = print if verbose else (lambda *a, **k: None)
@@ -239,8 +291,16 @@ def predict_field(request, gee_project=None, model="auto", measured=None, includ
         elif prob is not None and prob >= 0.2:
             notes.append(f"raised chance ({prob:.0%}) that this field is saline (EC1:5 > 0.6 dS/m)")
         risky = [r["crop"] for r in table["crops"] if r["verdict"] == "risky"]
-        if not measured and (risky or (prob or 0) > 0.2 or (dist is not None and dist <= 5)):
-            notes.append("a soil salinity test (ECe) would settle the risky crops - pass it as measured=...")
+        strict_ece, strict_why = strict_salinity(table, prob, dist, clay, ph, measured)
+        if strict:
+            crops, excluded = strict_filter(table["crops"], strict_ece, min_yield)
+            if excluded:
+                notes.append(f"strict mode: {len(excluded)} crop(s) excluded - below {min_yield:.0f}% of full "
+                             f"yield at ECe {strict_ece} dS/m ({strict_why})")
+        else:
+            crops, excluded = table["crops"], []
+        if not measured and (risky or excluded or (prob or 0) > 0.2 or (dist is not None and dist <= 5)):
+            notes.append("a soil salinity test (ECe) would settle the risky/excluded crops - pass it as measured=...")
 
         results.append({
             "field": i + 1,
@@ -258,7 +318,11 @@ def predict_field(request, gee_project=None, model="auto", measured=None, includ
                 "likely_gypsum": table.get("likely_gypsum"),
                 "distance_to_coast_km": None if dist is None or pd.isna(dist) else round(float(dist), 2),
             },
-            "crops": table["crops"],
+            "strict": {"on": strict, "min_yield_pct": min_yield if strict else None,
+                       "judged_at_ece_dS_m": strict_ece if strict else None,
+                       "why": strict_why if strict else None},
+            "crops": crops,
+            "excluded_crops": excluded,
             "notes": notes,
             **({"features": {k: (None if pd.isna(v) else float(v)) for k, v in row.items()}}
                if include_features else {}),
@@ -277,11 +341,18 @@ def print_result(result):
                   f"chance elevated {s['chance_elevated']:.0%}")
         e = s["ece_dS_m"]
         print(f"ECe   {e['low']}-{e['high']} dS/m (most likely {e['most_likely']}) -> {s['class']}")
-        print(f"\n{'crop':<38}{'verdict':<16}{'yield %':>8}{'worst %':>9}")
+        if f["strict"]["on"]:
+            print(f"Strict mode: judged at ECe {f['strict']['judged_at_ece_dS_m']} dS/m ({f['strict']['why']})")
+        print(f"\n{'crop':<38}{'verdict':<16}{'yield %':>8}{'worst %':>9}{'strict %':>10}")
         for r in f["crops"]:
             y = "-" if r["yield_expected"] is None else f"{r['yield_expected']:.0f}"
             w = "-" if r["yield_worst"] is None else f"{r['yield_worst']:.0f}"
-            print(f"{r['crop'][:37]:<38}{r['verdict']:<16}{y:>8}{w:>9}")
+            st = "-" if r.get("yield_strict") is None else f"{r['yield_strict']:.0f}"
+            print(f"{r['crop'][:37]:<38}{r['verdict']:<16}{y:>8}{w:>9}{st:>10}")
+        if f["excluded_crops"]:
+            print(f"\nExcluded (strict mode):")
+            for r in f["excluded_crops"]:
+                print(f"  - {r['crop'][:37]:<38}{r['excluded_because']}")
         for n in f["notes"]:
             print(f"  * {n}")
 
@@ -293,9 +364,14 @@ def main():
     ap.add_argument("--model", default="auto", choices=["auto", "full", "static"])
     ap.add_argument("--measured", type=float, help="a measured ECe in dS/m (soil test)")
     ap.add_argument("--out", help="also save the full result as JSON")
+    ap.add_argument("--features", action="store_true", help="include the model inputs in the result")
+    ap.add_argument("--lenient", action="store_true", help="keep every crop (turn strict mode off)")
+    ap.add_argument("--min-yield", type=float, default=STRICT_MIN_YIELD,
+                    help=f"strict mode: %% of full yield needed at the high value (default {STRICT_MIN_YIELD:g})")
     args = ap.parse_args()
     result = predict_field(args.request, gee_project=args.project, model=args.model,
-                           measured={"value": args.measured, "unit": "ECe"} if args.measured else None)
+                           measured={"value": args.measured, "unit": "ECe"} if args.measured else None,
+                           strict=not args.lenient, min_yield=args.min_yield, include_features=args.features)
     print_result(result)
     if args.out:
         Path(args.out).write_text(json.dumps(result, indent=2, ensure_ascii=False), encoding="utf-8")

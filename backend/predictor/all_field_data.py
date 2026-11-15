@@ -3,6 +3,7 @@
 Collects the data the second model needs for ONE field, using the data scripts in Backend/Data.
 
     python all_field_data.py --field field.json   # field.json: {"points": [[lon, lat], ...], "end": "YYYY-MM-DD"}
+    python all_field_data.py --field field.json --refresh   # ignore what is saved, collect everything again
 
 or from code (e.g. main.py):
     from all_field_data import get_field_data
@@ -24,12 +25,21 @@ Folder layout:
           field_data.csv        ONE ROW for the field
           raw/static/<script>/  CSVs of soil, soil pH, elevation
           raw/<year>/<script>/  CSVs of rain, temperature, ET for each past season
+          request.json          which field / end date / settings the saved data belongs to
+
+Reuse: nothing is downloaded twice.
+  - Same field, same end date, same settings, field_data.csv there -> it is loaded, nothing runs.
+  - Otherwise every script whose CSV is already in raw/ is reused and only the missing ones run
+    (e.g. a script that failed last time, or a new season window after the end date changed).
+  - A DIFFERENT field (other points) -> the old raw/ data is deleted first, so fields never mix.
+  - refresh=True / --refresh -> everything is collected again.
 """
 import argparse
 import calendar
 import csv
 import importlib.util
 import json
+import shutil
 import statistics
 import sys
 from datetime import date, timedelta
@@ -133,11 +143,17 @@ def write_source(path, points, day):
 
 
 def run_scripts(scripts, source, raw_dir, days=None):
-    """Run the scripts for one source.json and return the merged values {column: text}."""
+    """Run the scripts for one source.json and return the merged values {column: text}.
+    A script whose CSVs are already in raw_dir is not run again: its saved CSVs are used."""
     sites, monthly = {"site1": {}}, {}
     for entry in scripts:
         entry = {**entry, "args": [a.replace("{days}", str(days)) for a in entry["args"]]}
-        folder = data.run(entry, source, raw_dir)
+        saved = Path(raw_dir) / entry["name"]
+        if all((saved / name).exists() for name in entry["csvs"]):
+            print(f"   {entry['name']}: already collected - loaded from {saved}")
+            folder = saved
+        else:
+            folder = data.run(entry, source, raw_dir)
         if folder is None:
             print(f"!! {entry['name']}: no data")
             continue
@@ -190,10 +206,48 @@ def _value(v):
         return v
 
 
-def get_field_data(points, end, out_dir=OUT_DIR):
-    """Run the data scripts for one field and return its data as a dict (also saved as field_data.csv)."""
+def _request(points, end):
+    """What the saved data depends on: the field's points, the end date and the season settings."""
+    return {"points": [[round(float(lon), 6), round(float(lat), 6)] for lon, lat in points],
+            "end": end, "season_months": SEASON_MONTHS, "climate_years": CLIMATE_YEARS}
+
+
+def _load_saved(out_dir, request, refresh):
+    """field_data.csv as a dict if it belongs to exactly this request, else None.
+    Also clears raw/ when the saved data is for another field (or refresh is asked)."""
+    meta, result = out_dir / "request.json", out_dir / "field_data.csv"
+    old = None
+    if meta.exists():
+        try:
+            old = json.loads(meta.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            old = None
+    if refresh or old is None or old.get("points") != request["points"]:
+        if (out_dir / "raw").exists() or result.exists():
+            why = "refresh asked" if refresh else "different field" if old else "no record of which field it was"
+            print(f"Saved data not reused ({why}) - collecting again")
+        shutil.rmtree(out_dir / "raw", ignore_errors=True)
+        result.unlink(missing_ok=True)
+        return None
+    if old == request and result.exists():
+        with open(result, newline="", encoding="utf-8") as fh:
+            rows = list(csv.DictReader(fh))
+        if rows:
+            return {k: _value(v) for k, v in rows[0].items()}
+    return None                                       # same field, other date/settings: reuse raw/ only
+
+
+def get_field_data(points, end, out_dir=OUT_DIR, refresh=False):
+    """Data for one field as a dict (also saved as field_data.csv).
+    Loads the saved data when it is for the same field and end date; refresh=True collects it again."""
     out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
     end_day = date.fromisoformat(end)
+    request = _request(points, end)
+    saved = _load_saved(out_dir, request, refresh)
+    if saved is not None:
+        print(f"All data for this field and end date already collected - loaded {out_dir / 'field_data.csv'}")
+        return saved
     row = {"centre_lon": round(sum(p[0] for p in points) / len(points), 6),
            "centre_lat": round(sum(p[1] for p in points) / len(points), 6),
            "date": end}
@@ -228,6 +282,7 @@ def get_field_data(points, end, out_dir=OUT_DIR):
         writer = csv.DictWriter(fh, fieldnames=list(row))
         writer.writeheader()
         writer.writerow(row)
+    (out_dir / "request.json").write_text(json.dumps(request, indent=2), encoding="utf-8")
     print(f"\nfield_data.csv: {len(row)} columns -> {out_dir / 'field_data.csv'}")
     return {k: _value(v) for k, v in row.items()}
 
@@ -236,6 +291,7 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser(description="Collect the second model's data for one field.")
     ap.add_argument("--field", required=True, help='JSON with "points" [[lon, lat], ...] and "end" (YYYY-MM-DD)')
     ap.add_argument("--out", default=str(OUT_DIR), help="output folder")
+    ap.add_argument("--refresh", action="store_true", help="ignore saved data and collect everything again")
     args = ap.parse_args()
     field = json.loads(Path(args.field).read_text(encoding="utf-8"))
-    get_field_data(field["points"], field["end"], args.out)
+    get_field_data(field["points"], field["end"], args.out, refresh=args.refresh)

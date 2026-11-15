@@ -1,0 +1,40 @@
+[
+  {
+    "costs": {
+      "complete": true,
+      "estimated": false,
+      "seed_eur_ha": null,
+      "extra_eur_ha": null,
+      "total_eur_ha": 690.56,
+      "fertilizer_eur_ha": 135,
+      "irrigation_eur_ha": 555.56,
+      "contract_work_eur_ha": null,
+      "crop_protection_eur_ha": null
+    },
+    "income": {
+      "disclosed": true,
+      "straw_kg_ha": null,
+      "yield_kg_ha": 1000,
+      "other_eur_ha": 600,
+      "price_eur_kg": 0.7,
+      "margin_eur_ha": 1609.44,
+      "revenue_basis": "reported",
+      "revenue_eur_ha": 2300,
+      "subsidy_eur_ha": 1000,
+      "straw_price_eur_kg": null
+    },
+    "crop_id": "cotton",
+    "ongoing": false,
+    "sown_on": "2026-04-01",
+    "tillage": "reduced",
+    "nitrogen": "low",
+    "residues": "incorporate",
+    "season_id": 3,
+    "irrigation": "full",
+    "season_year": 2026,
+    "crop_name_el": "Βαμβάκι ποτιστικό",
+    "crop_name_en": "Cotton (irrigated)",
+    "harvested_on": "2026-10-20",
+    "yield_outcome": "normal"
+  }
+]

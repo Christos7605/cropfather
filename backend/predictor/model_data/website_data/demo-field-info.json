@@ -1,0 +1,27 @@
+{
+  "status": "submitted",
+  "answers": {
+    "frost": "never",
+    "drainage": "day",
+    "dryYears": [
+      2017
+    ],
+    "salinity": "often",
+    "wetYears": [
+      2017
+    ],
+    "dryMonths": [
+      1,
+      2
+    ],
+    "soilTexture": "stony",
+    "lastSoilTest": "none",
+    "waterShortage": 1,
+    "maxDays": 100
+  },
+  "version": "v2-draft",
+  "updated_at": "2026-11-14T15:38:02.322937+00:00",
+  "submitted_at": "2026-11-14T14:58:53.509035+00:00",
+  "answered_count": 9,
+  "question_count": 9
+}

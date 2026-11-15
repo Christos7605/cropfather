@@ -4,27 +4,33 @@
     {
       "field": 1,
       "centre": {
-        "lon": 22.52365,
-        "lat": 38.8211
+        "lon": 21.184383,
+        "lat": 38.433975
       },
-      "end_date": "2023-07-31",
-      "salinity_from": "full model",
+      "end_date": "2025-11-30",
+      "salinity_from": "static model",
       "salinity": {
         "ec_1to5_dS_m": {
-          "low": 0.143,
-          "most_likely": 0.28,
-          "high": 0.432
+          "low": 0.153,
+          "most_likely": 0.414,
+          "high": 0.545
         },
         "ece_dS_m": {
-          "low": 0.14,
-          "most_likely": 0.88,
-          "high": 2.19
+          "low": 0.15,
+          "most_likely": 1.81,
+          "high": 2.79
         },
         "class": "non-saline",
-        "chance_elevated": 0.04,
+        "chance_elevated": 0.487,
         "calcareous_soil": true,
         "likely_gypsum": false,
-        "distance_to_coast_km": 3.85
+        "distance_to_coast_km": 5.51
+      },
+      "strict": {
+        "on": true,
+        "min_yield_pct": 90.0,
+        "judged_at_ece_dS_m": 3.2,
+        "why": "49% chance of an elevated field: judged as one (EC1:5 0.6 dS/m)"
       },
       "crops": [
         {
@@ -36,18 +42,8 @@
           "yield_best": 100.0,
           "yield_worst": 100.0,
           "verdict": "safe",
-          "soil_ph": "tolerated"
-        },
-        {
-          "crop": "maize",
-          "season": "summer",
-          "salt_limit_ece": 1.7,
-          "yield_loss_per_dS_m": 12.0,
-          "yield_expected": 100.0,
-          "yield_best": 100.0,
-          "yield_worst": 94.1,
-          "verdict": "safe",
-          "soil_ph": "tolerated"
+          "soil_ph": "tolerated",
+          "yield_strict": 100.0
         },
         {
           "crop": "rice",
@@ -58,7 +54,8 @@
           "yield_best": 100.0,
           "yield_worst": 100.0,
           "verdict": "safe",
-          "soil_ph": "tolerated"
+          "soil_ph": "tolerated",
+          "yield_strict": 97.6
         },
         {
           "crop": "soybean",
@@ -69,7 +66,8 @@
           "yield_best": 100.0,
           "yield_worst": 100.0,
           "verdict": "safe",
-          "soil_ph": "tolerated"
+          "soil_ph": "tolerated",
+          "yield_strict": 100.0
         },
         {
           "crop": "sunflower",
@@ -80,7 +78,8 @@
           "yield_best": 100.0,
           "yield_worst": 100.0,
           "verdict": "safe",
-          "soil_ph": "tolerated"
+          "soil_ph": "tolerated",
+          "yield_strict": 100.0
         },
         {
           "crop": "sorghum",
@@ -91,7 +90,8 @@
           "yield_best": 100.0,
           "yield_worst": 100.0,
           "verdict": "safe",
-          "soil_ph": "tolerated"
+          "soil_ph": "tolerated",
+          "yield_strict": 100.0
         },
         {
           "crop": "peanut",
@@ -102,7 +102,8 @@
           "yield_best": 100.0,
           "yield_worst": 100.0,
           "verdict": "safe",
-          "soil_ph": "tolerated"
+          "soil_ph": "tolerated",
+          "yield_strict": 100.0
         },
         {
           "crop": "sugar_beet",
@@ -113,7 +114,8 @@
           "yield_best": 100.0,
           "yield_worst": 100.0,
           "verdict": "safe",
-          "soil_ph": "tolerated"
+          "soil_ph": "tolerated",
+          "yield_strict": 100.0
         },
         {
           "crop": "clover",
@@ -122,9 +124,10 @@
           "yield_loss_per_dS_m": 7.3,
           "yield_expected": 100.0,
           "yield_best": 100.0,
-          "yield_worst": 98.6,
+          "yield_worst": 94.2,
           "verdict": "safe",
-          "soil_ph": "tolerated"
+          "soil_ph": "tolerated",
+          "yield_strict": 91.2
         },
         {
           "crop": "durum_wheat",
@@ -135,7 +138,8 @@
           "yield_best": 100.0,
           "yield_worst": 100.0,
           "verdict": "safe",
-          "soil_ph": "tolerated"
+          "soil_ph": "tolerated",
+          "yield_strict": 100.0
         },
         {
           "crop": "barley",
@@ -146,7 +150,8 @@
           "yield_best": 100.0,
           "yield_worst": 100.0,
           "verdict": "safe",
-          "soil_ph": "tolerated"
+          "soil_ph": "tolerated",
+          "yield_strict": 100.0
         },
         {
           "crop": "soft_wheat",
@@ -157,7 +162,8 @@
           "yield_best": 100.0,
           "yield_worst": 100.0,
           "verdict": "safe",
-          "soil_ph": "tolerated"
+          "soil_ph": "tolerated",
+          "yield_strict": 100.0
         },
         {
           "crop": "rapeseed",
@@ -168,7 +174,8 @@
           "yield_best": 100.0,
           "yield_worst": 100.0,
           "verdict": "safe",
-          "soil_ph": "tolerated"
+          "soil_ph": "tolerated",
+          "yield_strict": 100.0
         },
         {
           "crop": "common_vetch",
@@ -179,7 +186,8 @@
           "yield_best": 100.0,
           "yield_worst": 100.0,
           "verdict": "safe",
-          "soil_ph": "tolerated"
+          "soil_ph": "tolerated",
+          "yield_strict": 97.8
         },
         {
           "crop": "field_pea",
@@ -190,12 +198,30 @@
           "yield_best": 100.0,
           "yield_worst": 100.0,
           "verdict": "safe",
-          "soil_ph": "tolerated"
+          "soil_ph": "tolerated",
+          "yield_strict": 100.0
+        }
+      ],
+      "excluded_crops": [
+        {
+          "crop": "maize",
+          "season": "summer",
+          "salt_limit_ece": 1.7,
+          "yield_loss_per_dS_m": 12.0,
+          "yield_expected": 98.7,
+          "yield_best": 100.0,
+          "yield_worst": 86.9,
+          "verdict": "risky",
+          "soil_ph": "tolerated",
+          "yield_strict": 82.0,
+          "excluded_because": "only 82.0% of full yield at ECe 3.2 dS/m (needs 90%)"
         }
       ],
       "notes": [
         "limestone (calcareous) soil: about 0.2 dS/m of the reading is dissolved lime, not salt",
-        "a soil salinity test (ECe) would settle the risky crops - pass it as measured=..."
+        "raised chance (49%) that this field is saline (EC1:5 > 0.6 dS/m)",
+        "strict mode: 1 crop(s) excluded - below 90% of full yield at ECe 3.2 dS/m (49% chance of an elevated field: judged as one (EC1:5 0.6 dS/m))",
+        "a soil salinity test (ECe) would settle the risky/excluded crops - pass it as measured=..."
       ]
     }
   ]

@@ -1,0 +1,36 @@
+Field Shift backend programs
+Copyright (C) 2026 Field Shift contributors
+
+These programs are free software: you can redistribute them and/or
+modify them under the terms of the GNU General Public License as
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
+
+These programs are distributed in the hope that they will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with these programs. If not, see <https://www.gnu.org/licenses/>.
+
+The full license text is in COPYING in this directory.
+
+This covers the programs you run on your own machine:
+
+- build_dataset.py
+- the scripts under Data/
+- the scripts under useful_data/
+- the experiment programs under experiments/scripts/
+- the tests under experiments/tests/
+
+The Python package fieldshift_ml (experiments/src/fieldshift_ml) is a
+library those programs import. That library is under the GNU Lesser
+General Public License version 3, so another program can import it and
+keep its own license. Its terms are in
+experiments/src/fieldshift_ml/COPYING.LESSER, together with the GNU GPL
+in experiments/src/fieldshift_ml/COPYING.
+
+Files this project did not write stay under the terms of their
+providers. That includes cached satellite and climate files, LUCAS and
+WoSIS material, and the CSV tables built from those sources.

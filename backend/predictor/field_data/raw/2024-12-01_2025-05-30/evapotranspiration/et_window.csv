@@ -1,0 +1,2 @@
+site,start,end,days,source,modis_days,good_dates,et0_mm,et_min_mm,et_mean_mm,et_max_typical_mm,et_max_mm,kc_mean
+site1,2024-12-01,2025-05-30,181,ECOSTRESS,0,10,425.4,215.0,227.6,231.1,231.1,0.535

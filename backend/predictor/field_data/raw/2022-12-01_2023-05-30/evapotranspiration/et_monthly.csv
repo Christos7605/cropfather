@@ -1,0 +1,7 @@
+site,month,source,days,modis_days,good_dates,et0_mm,et_min_mm,et_mean_mm,et_max_typical_mm,et_max_mm
+site1,2022-12,ECOSTRESS,31,0,3,31.8,23.8,24.6,25.4,25.4
+site1,2023-01,ECOSTRESS,31,0,2,36.9,25.7,27.4,28.9,28.9
+site1,2023-02,ECOSTRESS,28,0,3,48.8,28.1,28.7,29.8,29.8
+site1,2023-03,ECOSTRESS,31,0,1,75.1,42.9,46.7,48.2,48.2
+site1,2023-04,ECOSTRESS,30,0,3,94.1,50.1,54.1,58.3,58.3
+site1,2023-05,ECOSTRESS,30,0,1,113.4,54.9,57.2,58.6,58.6

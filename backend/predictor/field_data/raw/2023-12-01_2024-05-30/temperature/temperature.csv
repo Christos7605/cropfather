@@ -1,0 +1,2 @@
+site,air_days,air_min_c,air_mean_c,air_max_c,hot_days_over_30c,lst_passes,lst_min_c,lst_mean_c,lst_max_c,lst_minus_air_c
+site1,182,1.9,14.5,30.4,1,25,7.2,20.8,44.0,2.6

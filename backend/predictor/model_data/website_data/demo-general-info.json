@@ -1,0 +1,23 @@
+{
+  "status": "submitted",
+  "answers": {
+    "labour": "family",
+    "tenure": "ownAll",
+    "machinery": "own",
+    "experience": "15to30",
+    "priorities": [
+      "lessTools",
+      "cutCosts",
+      "lessWork"
+    ],
+    "riskAttitude": 2,
+    "excludedCrops": [
+      "none"
+    ]
+  },
+  "version": "v1-draft",
+  "updated_at": "2026-11-14T14:58:05.371168+00:00",
+  "submitted_at": "2026-11-14T14:58:05.371168+00:00",
+  "answered_count": 7,
+  "question_count": 7
+}
