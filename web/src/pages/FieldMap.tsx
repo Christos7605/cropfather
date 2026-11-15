@@ -767,6 +767,7 @@ export const FieldMap: React.FC = () => {
           language={language}
           neighbourTitle={t('map.neighbour.title')}
           neighbourDesc={t('map.neighbour.desc')}
+          outsideMessage={t('map.outside')}
           showParcels={showParcels}
           highlightParcel={mode === 'browse' ? parcelPick?.hit?.polygon ?? null : null}
           onParcelClick={(lng, lat) => void handleParcelClick(lng, lat)}
@@ -781,6 +782,7 @@ export const FieldMap: React.FC = () => {
           onDrawComplete={handleDrawComplete}
           onShapeChange={handleShapeChange}
           onBlockedPoint={() => showToast(t('map.review.blockedPoint'))}
+          onOutsidePoint={() => showToast(t('map.outside'))}
           onZoomChange={setZoom}
           onCanUndoChange={setCanUndo}
           onReady={() => setMapReady(true)}

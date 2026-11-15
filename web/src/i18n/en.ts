@@ -408,6 +408,7 @@ export const en = {
     limitReached: 'You have reached the limit of {max} fields for this account.',
     guestLimit: 'Guest sessions can save up to {max} fields. Create an account to save more.',
     zoomToDraw: 'Zoom in closer to your land to start drawing.',
+    outside: 'Coming soon for the rest of the world. For now you can register fields in Greece only.',
     zoomIn: 'Zoom in here',
     loadingFields: 'Loading your fields...',
     loadFailed: 'Could not load your fields.',
@@ -1415,6 +1416,7 @@ export const en = {
     FS009: 'The boundary is outside the valid map area.',
     FS010: 'The boundary surrounds another field. Draw around it instead.',
     FS011: 'The field name must be between 1 and 80 characters.',
+    FS012: 'Coming soon for the rest of the world. For now you can register fields in Greece only.',
   },
 };
 

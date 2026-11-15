@@ -45,6 +45,7 @@ import {
   VECTOR_SOURCE_ID,
   WELL_COLORS,
 } from '../../lib/mapConfig';
+import { isInGreece, outsideGreeceMask, polygonInGreece, GREECE } from '../../lib/greece';
 import {
   createHatchPattern,
   findSnapPoint,
@@ -92,6 +93,8 @@ interface Props {
   language: 'el' | 'en';
   neighbourTitle: string;
   neighbourDesc: string;
+  // Hover text for the dimmed area outside Greece
+  outsideMessage: string;
   // Show Hellenic Cadastre parcel outlines
   showParcels: boolean;
   // Parcel chosen by the farmer, outlined until they use or dismiss it
@@ -111,6 +114,7 @@ interface Props {
   onDrawComplete: (polygon: Polygon) => void;
   onShapeChange: (polygon: Polygon) => void;
   onBlockedPoint: () => void;
+  onOutsidePoint: () => void;
   onZoomChange: (zoom: number) => void;
   onCanUndoChange: (canUndo: boolean) => void;
   onReady: () => void;
@@ -118,6 +122,8 @@ interface Props {
 
 setWorkerUrl(maplibreWorkerUrl);
 
+const SRC_OUTSIDE = 'fs-outside';
+const SRC_GREECE = 'fs-greece';
 const SRC_FIELDS = 'fs-fields';
 const SRC_NEIGHBOURS = 'fs-neighbours';
 const SRC_SATELLITE = 'fs-satellite';
@@ -367,6 +373,59 @@ export const FieldMapCanvas = forwardRef<FieldMapHandle, Props>(function FieldMa
       );
 
       map.addImage(HATCH_IMAGE, createHatchPattern());
+
+      // Greece is open. Everywhere else is dimmed, with the country outline drawn on top.
+      map.addSource(SRC_OUTSIDE, {
+        type: 'geojson',
+        data: { type: 'Feature', properties: {}, geometry: outsideGreeceMask() },
+      });
+      map.addLayer(
+        {
+          id: 'fs-outside-fill',
+          type: 'fill',
+          source: SRC_OUTSIDE,
+          paint: { 'fill-color': '#1b2921', 'fill-opacity': 0.45 },
+        },
+        firstSymbolId,
+      );
+      map.addSource(SRC_GREECE, {
+        type: 'geojson',
+        data: { type: 'Feature', properties: {}, geometry: GREECE },
+      });
+      map.addLayer(
+        {
+          id: 'fs-greece-casing',
+          type: 'line',
+          source: SRC_GREECE,
+          paint: { 'line-color': '#1b2921', 'line-width': 4 },
+        },
+        firstSymbolId,
+      );
+      map.addLayer(
+        {
+          id: 'fs-greece-line',
+          type: 'line',
+          source: SRC_GREECE,
+          paint: { 'line-color': '#f7f5ee', 'line-width': 2 },
+        },
+        firstSymbolId,
+      );
+
+      map.on('mousemove', 'fs-outside-fill', (e: MapLayerMouseEvent) => {
+        const html = document.createElement('div');
+        const text = document.createElement('strong');
+        text.textContent = propsRef.current.outsideMessage;
+        html.append(text);
+        if (!popup) {
+          popup = new Popup({ closeButton: false, closeOnClick: false, className: 'fs-popup', maxWidth: '260px', offset: 12 });
+        }
+        popup.setLngLat(e.lngLat).setDOMContent(html).addTo(map);
+        map.getCanvas().style.cursor = 'not-allowed';
+      });
+      map.on('mouseleave', 'fs-outside-fill', () => {
+        popup?.remove();
+        if (propsRef.current.mode === 'browse') map.getCanvas().style.cursor = '';
+      });
 
       // Hellenic Cadastre parcels: thin light-blue outlines under everything the farmer owns
       map.addSource(SRC_PARCELS, { type: 'geojson', data: EMPTY, promoteId: 'pid', attribution: CADASTRE_ATTRIBUTION });
@@ -675,6 +734,7 @@ export const FieldMapCanvas = forwardRef<FieldMapHandle, Props>(function FieldMa
       map.on('click', (e) => {
         const p = propsRef.current;
         if (p.mode !== 'browse' || !p.showParcels || map.getZoom() < MIN_PARCEL_ZOOM) return;
+        if (!isInGreece(e.lngLat.lng, e.lngLat.lat)) return;
         if (overOwnOrTaken(e.point)) return; // own fields open their details whereas taken land cannot be picked
         p.onParcelClick(e.lngLat.lng, e.lngLat.lat);
       });
@@ -691,19 +751,28 @@ export const FieldMapCanvas = forwardRef<FieldMapHandle, Props>(function FieldMa
       }): Position | undefined =>
         findSnapPoint(event.lng, event.lat, snapRingsRef.current, context.project, context.unproject);
 
+      const notifyLimit = (kind: 'blocked' | 'outside') => {
+        const now = Date.now();
+        if (now - lastBlockedNoticeRef.current <= 1500) return;
+        lastBlockedNoticeRef.current = now;
+        if (kind === 'outside') propsRef.current.onOutsidePoint();
+        else propsRef.current.onBlockedPoint();
+      };
+
       const rejectBlockedCorners = (feature: GeoJSONStoreFeatures, context: { updateType: unknown }) => {
         // Moving the mouse is always allowed whereas placing or moving a corner is checked
         if (String(context.updateType) === 'provisional') return { valid: true };
         const polygon = asPolygon(feature);
         if (!polygon) return { valid: true };
         const ring = polygon.coordinates[0] ?? [];
+        const outside = ring.length >= 4 ? !polygonInGreece(polygon) : ring.some(([lng, lat]) => !isInGreece(lng, lat));
+        if (outside) {
+          notifyLimit('outside');
+          return { valid: false, reason: 'outside' };
+        }
         for (const corner of ring) {
           if (isInsideAny(corner, blockedRef.current)) {
-            const now = Date.now();
-            if (now - lastBlockedNoticeRef.current > 1500) {
-              lastBlockedNoticeRef.current = now;
-              propsRef.current.onBlockedPoint();
-            }
+            notifyLimit('blocked');
             return { valid: false, reason: 'blocked' };
           }
         }
@@ -785,6 +854,18 @@ export const FieldMapCanvas = forwardRef<FieldMapHandle, Props>(function FieldMa
           const first = polygon?.coordinates[0]?.[0];
           // Terra Draw does not validate the very first corner, so check it here and restart
           // the drawing if it was placed on land that is already registered
+          if (first && !isInGreece(first[0], first[1])) {
+            window.setTimeout(() => {
+              draw.setMode('static');
+              draw.clear();
+              draw.clearUndoRedoHistory();
+              draw.setMode('polygon');
+              propsRef.current.onCanUndoChange(false);
+              propsRef.current.onDrawProgress(0);
+            }, 0);
+            notifyLimit('outside');
+            return;
+          }
           if (first && isInsideAny(first, blockedRef.current)) {
             window.setTimeout(() => {
               draw.setMode('static');
@@ -794,11 +875,7 @@ export const FieldMapCanvas = forwardRef<FieldMapHandle, Props>(function FieldMa
               propsRef.current.onCanUndoChange(false);
               propsRef.current.onDrawProgress(0);
             }, 0);
-            const now = Date.now();
-            if (now - lastBlockedNoticeRef.current > 1500) {
-              lastBlockedNoticeRef.current = now;
-              propsRef.current.onBlockedPoint();
-            }
+            notifyLimit('blocked');
             return;
           }
           if (draw.getModeState() === 'drawing' && polygon && (polygon.coordinates[0]?.length ?? 0) >= 4) {

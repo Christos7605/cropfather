@@ -418,6 +418,7 @@ export const el: Messages = {
     limitReached: 'Έχετε φτάσει το όριο των {max} χωραφιών για αυτόν τον λογαριασμό.',
     guestLimit: 'Οι συνεδρίες επισκέπτη μπορούν να αποθηκεύσουν έως {max} χωράφια. Δημιουργήστε λογαριασμό για περισσότερα.',
     zoomToDraw: 'Ζουμάρετε πιο κοντά στη γη σας για να ξεκινήσετε τη σχεδίαση.',
+    outside: 'Σύντομα διαθέσιμο και για τον υπόλοιπο κόσμο. Προς το παρόν μπορείτε να καταχωρήσετε χωράφια μόνο στην Ελλάδα.',
     zoomIn: 'Μεγέθυνση εδώ',
     loadingFields: 'Φόρτωση των χωραφιών σας...',
     loadFailed: 'Δεν ήταν δυνατή η φόρτωση των χωραφιών σας.',
@@ -1422,5 +1423,6 @@ export const el: Messages = {
     FS009: 'The boundary is outside the valid map area.',
     FS010: 'The boundary surrounds another field. Draw around it instead.',
     FS011: 'The field name must be between 1 and 80 characters.',
+    FS012: 'Σύντομα διαθέσιμο και για τον υπόλοιπο κόσμο. Προς το παρόν μπορείτε να καταχωρήσετε χωράφια μόνο στην Ελλάδα.',
   },
 };
