@@ -1,14 +1,13 @@
 // Starts one NDVI check on GitHub Actions for a row the caller owns.
 // Deploy this file as the Edge Function dispatch-ndvi, with Verify JWT on.
 // Secret, set in the Supabase dashboard: GITHUB_DISPATCH_TOKEN.
-//
-// This file runs in Supabase's Deno runtime, which the website TypeScript
-// project does not know. The declaration below is only for the editor.
 
-declare const Deno: {
-  env: { get(name: string): string | undefined };
-  serve(handler: (req: Request) => Response | Promise<Response>): void;
-};
+const edge = (globalThis as unknown as {
+  Deno: {
+    env: { get(name: string): string | undefined };
+    serve(handler: (req: Request) => Response | Promise<Response>): void;
+  };
+}).Deno;
 
 const REPO = "Christos7605/cropfather";
 
@@ -45,13 +44,13 @@ async function ownsGithubRun(url: string, anon: string, auth: string, runId: str
   return !!row && row.user_id === userId && row.status === "ndvi" && row.via === "github";
 }
 
-Deno.serve(async (req) => {
+edge.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json(405, { error: "Method not allowed" });
 
-  const url = Deno.env.get("SUPABASE_URL") ?? "";
-  const anon = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
-  const token = Deno.env.get("GITHUB_DISPATCH_TOKEN") ?? "";
+  const url = edge.env.get("SUPABASE_URL") ?? "";
+  const anon = edge.env.get("SUPABASE_ANON_KEY") ?? "";
+  const token = edge.env.get("GITHUB_DISPATCH_TOKEN") ?? "";
   const auth = req.headers.get("Authorization") ?? "";
   if (!url || !anon || !auth.toLowerCase().startsWith("bearer ")) {
     return json(401, { error: "Not signed in" });
