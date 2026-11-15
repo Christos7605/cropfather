@@ -6,6 +6,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { listMyFields, type FieldRecord } from '../lib/fields';
 import { surveyProgress } from '../lib/fieldStatus';
 import { isFarmQuestionnaireComplete, loadFarmResponse } from '../lib/questionnaire';
+import { PredictionResultsView } from '../components/prediction/PredictionResults';
 import {
   choosePrediction,
   clearRunningPrediction,
@@ -14,22 +15,13 @@ import {
   githubWaitExpired,
   loadPredictionRun,
   loadRunningPrediction,
-  PREDICTION_KINDS,
   predictionPredictorLive,
   predictionWorkerLive,
-  type PredictionChoices,
-  type PredictionKind,
+  type PredictionResults,
 } from '../lib/prediction';
 
 type Gate = 'ready' | 'missing' | 'farm' | 'field' | 'other';
 type Phase = 'ndvi' | 'warn' | 'failed' | 'modelFailed' | 'down' | 'predict' | 'done';
-
-const CHOICE_KEY = {
-  environment: 'environmental',
-  financial: 'economic',
-  current: 'current',
-  balanced: 'mixed',
-} as const;
 
 // The result of a rotation request. NDVI and the model both follow prediction_runs.
 export const PredictionField: React.FC = () => {
@@ -137,7 +129,7 @@ const PredictionRun: React.FC<{ userId: string; runId: string; name: string }> =
   const navigate = useNavigate();
   const [phase, setPhase] = useState<Phase>('ndvi');
   const [observedOn, setObservedOn] = useState<string | null>(null);
-  const [results, setResults] = useState<PredictionChoices | null>(null);
+  const [results, setResults] = useState<PredictionResults | null>(null);
   const [choiceError, setChoiceError] = useState<string | null>(null);
   const [choosing, setChoosing] = useState(false);
   const predictSent = useRef(false);
@@ -376,13 +368,7 @@ const PredictionRun: React.FC<{ userId: string; runId: string; name: string }> =
         </section>
       )}
 
-      {phase === 'done' && (
-        <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {PREDICTION_KINDS.map((kind) => (
-            <ResultCard key={kind} kind={kind} crop={results?.[CHOICE_KEY[kind]] ?? null} />
-          ))}
-        </ul>
-      )}
+      {phase === 'done' && <PredictionResultsView results={results} />}
     </div>
   );
 };
@@ -412,13 +398,3 @@ const PhaseRow: React.FC<{
     <span className={`text-sm ${state === 'waiting' ? 'text-cf-muted' : 'font-medium text-cf-text'}`}>{label}</span>
   </li>
 );
-
-const ResultCard: React.FC<{ kind: PredictionKind; crop: string | null }> = ({ kind, crop }) => {
-  const { t } = useLanguage();
-  return (
-    <li className="bg-cf-panel border border-cf-primary/18 rounded-2xl p-5 sm:p-6 space-y-2">
-      <h2 className="text-base font-semibold text-cf-text">{t(`prediction.kind.${kind}`)}</h2>
-      <p className="text-sm text-cf-text leading-relaxed">{crop || t('prediction.noCrop')}</p>
-    </li>
-  );
-};

@@ -14,7 +14,7 @@ Pressing Predict writes `fields.prediction_requested_on` (the local calendar day
 2. If `vegetated` is true, the warning says "As of {date}, this field has vegetation." `{date}` is the Sentinel-2 day the checker returned (`observed_on`). **Cancel prediction** sets the row to `cancelled`, clears the lock, and returns to `/prediction`. **The field is empty** sets the row to `predict`.
 3. If `vegetated` is false, both warnings are skipped and the row is already `predict`.
 4. If the checker exits 2, crashes, or returns no date, the page says the check could not be completed. The only action is **Cancel prediction**. A new request can then start.
-5. Prediction stays on screen, with an indeterminate bar, while the row is `predict` or `scoring`. There is no 20 second timer. The model worker writes `done` and the four crop names, or `failed`. A `local` row is cancelled if the predictor heartbeat goes stale. A `github` row calls `dispatch-predict` once. If that call fails, the row is cancelled and the infrastructure message is shown. If a GitHub row is still `predict` or `scoring` 60 minutes after it was created, the page cancels it. The four cards, in order, are Environmentally best, Financially best, Current, and Balanced. If the model fails after the vegetation check succeeded, the page says the prediction could not be completed. The only action is **Cancel prediction**.
+5. Prediction stays on screen, with an indeterminate bar, while the row is `predict` or `scoring`. There is no 20 second timer. The model worker writes `done` and the full recommendations object, or `failed`. A `local` row is cancelled if the predictor heartbeat goes stale. A `github` row calls `dispatch-predict` once. If that call fails, the row is cancelled and the infrastructure message is shown. If a GitHub row is still `predict` or `scoring` 60 minutes after it was created, the page cancels it. The balanced option is the main result. Financial, environmental, and current sit below it, with scores, money, water, comments, warnings, the ranking, and the crops removed before scoring. If the model fails after the vegetation check succeeded, the page says the prediction could not be completed. The only action is **Cancel prediction**.
 
 Leaving during either wait keeps the lock. Coming back follows the row.
 
@@ -46,13 +46,7 @@ python backend/predictor/predictor_model.py --general general-info.json --field 
 
 The worker builds those files from `model_data`, in a temporary folder, so the demo files are not overwritten. `field-info.json` keeps `answers.maxMonths` and also sets `maxDays` to `maxMonths × 30`. Earth Engine signs in through `SALINITY_GEE_KEY` inside `backend/predictor/salinity/extra_features.py`. That variable is a path to the service-account file, or the JSON text itself. The model call still passes project `firld-512718`.
 
-The result object is:
-
-```json
-{ "environmental": "Barley", "economic": "Cotton", "mixed": "Wheat", "current": "cotton" }
-```
-
-`current` is the previous crop id from the season history. The other three are the names the model returns. A missing choice is JSON `null`, and the card says there is no crop.
+The result object keeps the four crop ids at the top (`economic`, `environmental`, `mixed`, `current`) and adds `options`, `ranking`, `removed_by_pruning`, `confidence_pct`, `field`, `inputs`, `weights`, and `notes`. `options` holds one object per choice, with `scores_pct`, `economics_eur_ha`, `water`, `comments`, and `warnings`. A missing choice has `crop: null`. The worker stores that whole object on `prediction_runs.results`.
 
 ## Requests
 
@@ -88,7 +82,7 @@ NDVI outcomes:
 
 Model outcomes:
 
-- four choices written: status `done`, `results` stored
+- the recommendations object written: status `done`, `results` stored
 - a crash or a timeout: status `failed`, `error` stored
 
 ## GitHub Actions
