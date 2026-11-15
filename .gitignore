@@ -27,6 +27,7 @@ __pycache__/
 .env.local
 .env.*.local
 /credentials
+/backend/predictor/salinity/extra_features_cache/
 
 # Editor directories and files
 .vscode/*

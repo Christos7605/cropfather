@@ -70,10 +70,13 @@ export const en = {
       'As of {date}, this field has vegetation. A prediction cannot be made for a field that is not empty.',
     ndviFailedTitle: 'The vegetation check could not be completed',
     ndviFailedBody: 'No prediction was made. You can cancel and try again.',
+    modelFailedTitle: 'The prediction could not be completed',
+    modelFailedBody: 'The vegetation check finished, but the model did not. You can cancel and try again.',
     cancelRun: 'Cancel prediction',
     override: 'The field is empty',
     overrideHint: 'Continue only if you are sure nothing is growing there. The check can be wrong.',
     placeholder: 'The suggested rotation will appear here.',
+    noCrop: 'No crop',
     resultsTitle: 'Rotation options for {name}',
     resultsIntro: 'Four ways to rotate this field.',
     kind: {

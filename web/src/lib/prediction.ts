@@ -1,6 +1,6 @@
 // One running request per account, remembered in this browser until it is cancelled
-// or the four results are shown. The NDVI phase follows prediction_runs; the 20 second
-// wait still stands in for the prediction model. See docs/prediction-pipeline.md.
+// or the four results are shown. NDVI and the model both follow prediction_runs.
+// See docs/prediction-pipeline.md.
 
 import { supabase } from './supabase';
 
@@ -23,11 +23,6 @@ export async function recordPredictionRequest(fieldId: string): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
-// The prediction phase is still a placeholder. The NDVI phase waits for the worker.
-export const PREDICTION_TIMINGS = {
-  predictionMs: 20_000,
-} as const;
-
 export type PredictionStatus =
   | 'ndvi'
   | 'running'
@@ -35,6 +30,7 @@ export type PredictionStatus =
   | 'failed'
   | 'cancelled'
   | 'predict'
+  | 'scoring'
   | 'done';
 
 /** local: the terminal worker. github: one Actions run, started by dispatch-ndvi. */
@@ -43,6 +39,17 @@ export type PredictionVia = 'local' | 'github';
 /** A GitHub check still waiting after this is cancelled. The queue and install take longer than the heartbeat. */
 export const GITHUB_NDVI_WAIT_MS = 25 * 60 * 1000;
 
+/** A GitHub model run still in predict or scoring after this is cancelled. */
+export const GITHUB_PREDICT_WAIT_MS = 60 * 60 * 1000;
+
+/** The four choices predictor_model.py writes. current may be a crop id. */
+export interface PredictionChoices {
+  environmental: string | null;
+  economic: string | null;
+  current: string | null;
+  mixed: string | null;
+}
+
 export interface PredictionRun {
   id: string;
   status: PredictionStatus;
@@ -50,6 +57,7 @@ export interface PredictionRun {
   vegetated: boolean | null;
   observed_on: string | null;
   error: string | null;
+  results: PredictionChoices | null;
   created_at: string;
 }
 
@@ -67,7 +75,7 @@ export async function startPredictionRun(fieldId: string, via: PredictionVia): P
 export async function loadPredictionRun(runId: string): Promise<PredictionRun | null> {
   const { data, error } = await supabase
     .from('prediction_runs')
-    .select('id, status, via, vegetated, observed_on, error, created_at')
+    .select('id, status, via, vegetated, observed_on, error, results, created_at')
     .eq('id', runId)
     .maybeSingle();
   if (error) throw new Error(error.message);
@@ -80,15 +88,33 @@ export async function dispatchNdvi(runId: string): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
+export async function dispatchPredict(runId: string): Promise<void> {
+  const { error } = await supabase.functions.invoke('dispatch-predict', { body: { run_id: runId } });
+  if (error) throw new Error(error.message);
+}
+
 export function githubWaitExpired(createdAt: string, now = Date.now()): boolean {
   const started = Date.parse(createdAt);
   if (Number.isNaN(started)) return false;
   return now - started >= GITHUB_NDVI_WAIT_MS;
 }
 
+export function githubPredictExpired(createdAt: string, now = Date.now()): boolean {
+  const started = Date.parse(createdAt);
+  if (Number.isNaN(started)) return false;
+  return now - started >= GITHUB_PREDICT_WAIT_MS;
+}
+
 /** True when the NDVI worker has written a heartbeat in the last 20 seconds. */
 export async function predictionWorkerLive(): Promise<boolean> {
   const { data, error } = await supabase.rpc('prediction_worker_live');
+  if (error) return false;
+  return data === true;
+}
+
+/** True when the model worker has written a heartbeat in the last 20 seconds. */
+export async function predictionPredictorLive(): Promise<boolean> {
+  const { data, error } = await supabase.rpc('prediction_predictor_live');
   if (error) return false;
   return data === true;
 }

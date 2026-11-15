@@ -1,8 +1,9 @@
+import argparse
 import json
-from pathlib import Path
-from all_field_data import get_field_data
 import sys
 from pathlib import Path
+
+from all_field_data import get_field_data
 
 # File Paths
 CROPS_PATH = Path(__file__).parent / "model_data/crops.json"
@@ -36,8 +37,6 @@ def load_crops(path=CROPS_PATH):
 def slope_func(slope, percentage, full_yield):
     return  (100 - percentage) / slope + full_yield
 
-crops = load_crops()
-
 #------------------------------------------------------#  
 #                 Load Farmer Data                     #
 #------------------------------------------------------# 
@@ -52,8 +51,6 @@ def load_farmer(general_path=DEMO_GENERAL_INFO, field_path=DEMO_FIELD_INFO, seas
         "max_days": field_answers.get("maxDays"),
         "seasons": load_json(seasons_path),
     }
-
-farmer = load_farmer()
 
 #------------------------------------------------------#  
 #         Load Field Data (Location, Date)             #
@@ -75,24 +72,14 @@ def load_field(path=DEMO_FIELD):
     points = [pt for feature in data["features"] for pt in feature["coords"]]
     return {"points": points, "end": data["end"], "season": SEASON_GROUP[season_from_date(data["end"])]}
 
-field = load_field()
-
-
-#------------------------------------------------------#
-#             Extract Field Information                #
-#------------------------------------------------------# 
-field_info = get_field_data(field["points"], field["end"])   # also saved as field_data/field_data.csv
-
-def print_values(title, prefix):
-    """Print every field_info value whose name starts with prefix."""
-    values = {k: v for k, v in field_info.items() if k.startswith(prefix)}
+def print_values(info, title, prefix):
+    """Print every field value whose name starts with prefix."""
+    values = {k: v for k, v in info.items() if k.startswith(prefix)}
     print(f"\n--- {title} ---")
     if not values:
         print("  (no data)")
     for key, value in values.items():
         print(f"  {key:<24} {value}")
-
-print(f"Field centre: {field_info['centre_lat']}, {field_info['centre_lon']}  |  date: {field_info['date']}")
 
 #----------------------Salinity------------------------#
 
@@ -110,30 +97,6 @@ def apply_salinity(crops, result, field=0):
         print(f"  - {name}: {excluded[name.lower()]}")
         removed.setdefault(name, []).append(f"salinity: {excluded[name.lower()]}")
     return {name: crop for name, crop in crops.items() if name.lower() not in excluded}
-
-request = {"features": [{"coords": field["points"]}], "end": field["end"], "max_cloud": 15}
-result = predict_field(request, gee_project="firld-512718", min_yield=90)
-crops = apply_salinity(crops, result)
-
-print(len(crops))
-#------------------------Rain--------------------------#
-print_values("Rain", "rain_")
-
-#---------------------Elevation------------------------#
-print_values("Elevation", "elevation_")
-
-#---------------------Soil Data------------------------#
-print_values("Soil Data ( Composition, pH)", "soil_")
-
-
-#--------------------Temperature-----------------------#
-print_values("Temperature", "temp_")
-
-#-----------------Evapotranspiration-------------------#
-print_values("Evapotranspiration", "et_")
-
-#---------------------GroundWater----------------------#
-print_values("GroundWater", "gw_")
 
 #------------------------------------------------------#
 #             Extract Economic Information             #
@@ -192,17 +155,6 @@ def prune_crops(crops, field_info, farmer, season):
         else:
             kept[name] = c
     return kept
-
-pruned_crops = prune_crops(crops, field_info, farmer, field["season"])
-
-
-
-# Print the results
-print(f"\n=== Pruning result (coming season: {field['season']}) ===")
-print(f"Kept ({len(pruned_crops)}): {', '.join(pruned_crops) or 'none'}")
-print(f"Removed ({len(removed)}):")
-for name, reasons in removed.items():
-    print(f"  - {name}: {'; '.join(reasons)}")
 
 #---------------------------------------------------------------------------------------------#
 #                                    SCORING ALGORITHM                                        #
@@ -277,40 +229,80 @@ def best(scores, key):
     return max(candidates, key=lambda n: candidates[n][key]) if candidates else None
 
 
-scores = score_crops(pruned_crops, field_info, farmer)
-
-# The current (last season) crop is scored even if pruning removed it, so the farmer can compare
-current = last_crop(farmer)
-current_score = score_crops({current: load_crops()[current]}, field_info, farmer)[current] \
-    if current in load_crops() else None
-
-options = {
-    "economic": best(scores, "economic"),
-    "environmental": best(scores, "environmental"),
-    "mixed": best(scores, "mixed"),
-    "current": current,
-}
-
-# Print the results
 def describe(name, s):
     fmt = lambda v: "-" if v is None else f"{v:.2f}"
     irr = "-" if s["irrigation_mm"] is None else f"{s['irrigation_mm']:.0f} mm"
     return (f"{name}  | economic {fmt(s['economic'])}, environmental {fmt(s['environmental'])}, "
             f"mixed {fmt(s['mixed'])} | suitability {fmt(s['suitability'])}, irrigation {irr}")
 
-print("\n=== Scores (pruned crops) ===")
-for name in sorted(scores, key=lambda n: scores[n]["mixed"] or 0, reverse=True):
-    print("  " + describe(name, scores[name]))
+def run_prediction(general_path, field_path, seasons_path, coords_path):
+    """Run one field and return the four choices. Names are whatever the model returns."""
+    global removed
+    removed = {}
+    crops = load_crops()
+    farmer = load_farmer(general_path, field_path, seasons_path)
+    field = load_field(coords_path)
+    field_info = get_field_data(field["points"], field["end"])
+    print(f"Field centre: {field_info['centre_lat']}, {field_info['centre_lon']}  |  date: {field_info['date']}")
 
-print("\n=== Options ===")
-labels = {"economic": "Most economic", "environmental": "Most environmental", "mixed": "Best mix"}
-for key, label in labels.items():
-    print(f"  {label:<20} {describe(options[key], scores[options[key]]) if options[key] else 'none'}")
-if current is None:
-    print(f"  {'Continue current':<20} no crop history")
-elif current_score is None:
-    print(f"  {'Continue current':<20} {current} (not in crops.json)")
-else:
-    note = f"   !! removed by pruning: {'; '.join(removed[current])}" if current in removed else ""
-    print(f"  {'Continue current':<20} {describe(current, current_score)}{note}")
-    
+    request = {"features": [{"coords": field["points"]}], "end": field["end"], "max_cloud": 15}
+    result = predict_field(request, gee_project="firld-512718", min_yield=90)
+    crops = apply_salinity(crops, result)
+    print(len(crops))
+    print_values(field_info, "Rain", "rain_")
+    print_values(field_info, "Elevation", "elevation_")
+    print_values(field_info, "Soil Data ( Composition, pH)", "soil_")
+    print_values(field_info, "Temperature", "temp_")
+    print_values(field_info, "Evapotranspiration", "et_")
+    print_values(field_info, "GroundWater", "gw_")
+
+    pruned_crops = prune_crops(crops, field_info, farmer, field["season"])
+    print(f"\n=== Pruning result (coming season: {field['season']}) ===")
+    print(f"Kept ({len(pruned_crops)}): {', '.join(pruned_crops) or 'none'}")
+    print(f"Removed ({len(removed)}):")
+    for name, reasons in removed.items():
+        print(f"  - {name}: {'; '.join(reasons)}")
+
+    scores = score_crops(pruned_crops, field_info, farmer)
+    current = last_crop(farmer)
+    catalogue = load_crops()
+    current_score = score_crops({current: catalogue[current]}, field_info, farmer)[current] \
+        if current in catalogue else None
+    options = {
+        "economic": best(scores, "economic"),
+        "environmental": best(scores, "environmental"),
+        "mixed": best(scores, "mixed"),
+        "current": current,
+    }
+
+    print("\n=== Scores (pruned crops) ===")
+    for name in sorted(scores, key=lambda n: scores[n]["mixed"] or 0, reverse=True):
+        print("  " + describe(name, scores[name]))
+    print("\n=== Options ===")
+    labels = {"economic": "Most economic", "environmental": "Most environmental", "mixed": "Best mix"}
+    for key, label in labels.items():
+        print(f"  {label:<20} {describe(options[key], scores[options[key]]) if options[key] else 'none'}")
+    if current is None:
+        print(f"  {'Continue current':<20} no crop history")
+    elif current_score is None:
+        print(f"  {'Continue current':<20} {current} (not in crops.json)")
+    else:
+        note = f"   !! removed by pruning: {'; '.join(removed[current])}" if current in removed else ""
+        print(f"  {'Continue current':<20} {describe(current, current_score)}{note}")
+    return options
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Score one field and write the four crop choices.")
+    parser.add_argument("--general", required=True, help="general-info.json")
+    parser.add_argument("--field", required=True, help="field-info.json")
+    parser.add_argument("--seasons", required=True, help="farmer-seasons.json")
+    parser.add_argument("--coords", required=True, help="field-coords.json")
+    parser.add_argument("--out", required=True, help="results JSON")
+    args = parser.parse_args()
+    options = run_prediction(args.general, args.field, args.seasons, args.coords)
+    Path(args.out).write_text(json.dumps(options, ensure_ascii=False), encoding="utf-8")
+
+
+if __name__ == "__main__":
+    main() 

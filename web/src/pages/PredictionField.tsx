@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { AlertCircle, ArrowLeft, Check, Loader2, Sprout } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -9,19 +9,29 @@ import { isFarmQuestionnaireComplete, loadFarmResponse } from '../lib/questionna
 import {
   choosePrediction,
   clearRunningPrediction,
+  dispatchPredict,
+  githubPredictExpired,
   githubWaitExpired,
   loadPredictionRun,
   loadRunningPrediction,
   PREDICTION_KINDS,
-  PREDICTION_TIMINGS,
+  predictionPredictorLive,
   predictionWorkerLive,
+  type PredictionChoices,
   type PredictionKind,
 } from '../lib/prediction';
 
 type Gate = 'ready' | 'missing' | 'farm' | 'field' | 'other';
-type Phase = 'ndvi' | 'warn' | 'failed' | 'down' | 'predict' | 'done';
+type Phase = 'ndvi' | 'warn' | 'failed' | 'modelFailed' | 'down' | 'predict' | 'done';
 
-// The result of a rotation request. NDVI follows the worker; the prediction wait is still a placeholder.
+const CHOICE_KEY = {
+  environment: 'environmental',
+  financial: 'economic',
+  current: 'current',
+  balanced: 'mixed',
+} as const;
+
+// The result of a rotation request. NDVI and the model both follow prediction_runs.
 export const PredictionField: React.FC = () => {
   const { fieldId = '' } = useParams();
   const { user } = useAuth();
@@ -127,9 +137,10 @@ const PredictionRun: React.FC<{ userId: string; runId: string; name: string }> =
   const navigate = useNavigate();
   const [phase, setPhase] = useState<Phase>('ndvi');
   const [observedOn, setObservedOn] = useState<string | null>(null);
-  const [progress, setProgress] = useState(0);
+  const [results, setResults] = useState<PredictionChoices | null>(null);
   const [choiceError, setChoiceError] = useState<string | null>(null);
   const [choosing, setChoosing] = useState(false);
+  const predictSent = useRef(false);
 
   useEffect(() => {
     if (phase !== 'ndvi') return;
@@ -156,9 +167,10 @@ const PredictionRun: React.FC<{ userId: string; runId: string; name: string }> =
             setPhase('warn');
           } else if (row.status === 'failed') {
             setPhase('failed');
-          } else if (row.status === 'predict') {
+          } else if (row.status === 'predict' || row.status === 'scoring') {
             setPhase('predict');
           } else if (row.status === 'done') {
+            setResults(row.results);
             clearRunningPrediction(userId);
             setPhase('done');
           }
@@ -177,24 +189,53 @@ const PredictionRun: React.FC<{ userId: string; runId: string; name: string }> =
 
   useEffect(() => {
     if (phase !== 'predict') return;
-    const start = performance.now();
-    setProgress(0);
-    const bar = window.setInterval(() => {
-      setProgress(Math.min(1, (performance.now() - start) / PREDICTION_TIMINGS.predictionMs));
-    }, 80);
-    const done = window.setTimeout(() => {
-      void choosePrediction(runId, 'finish')
-        .catch(() => undefined)
-        .finally(() => {
-          clearRunningPrediction(userId);
-          setPhase('done');
-        });
-    }, PREDICTION_TIMINGS.predictionMs);
-    return () => {
-      window.clearInterval(bar);
-      window.clearTimeout(done);
+    let cancelled = false;
+    const stop = (next: Phase) => {
+      void choosePrediction(runId, 'cancel').catch(() => undefined);
+      clearRunningPrediction(userId);
+      setPhase(next);
     };
-  }, [phase, runId, userId]);
+    const tick = () => {
+      Promise.all([loadPredictionRun(runId), predictionPredictorLive()])
+        .then(([row, live]) => {
+          if (cancelled || !row) return;
+          const waiting = row.status === 'predict' || row.status === 'scoring';
+          if (waiting && row.via !== 'github' && !live) {
+            stop('down');
+            return;
+          }
+          if (waiting && row.via === 'github' && githubPredictExpired(row.created_at)) {
+            stop('down');
+            return;
+          }
+          if (row.via === 'github' && row.status === 'predict' && !predictSent.current) {
+            predictSent.current = true;
+            void dispatchPredict(runId).catch(() => {
+              if (!cancelled) stop('down');
+            });
+          }
+          if (row.status === 'failed') {
+            setPhase('modelFailed');
+          } else if (row.status === 'done') {
+            setResults(row.results);
+            clearRunningPrediction(userId);
+            setPhase('done');
+          } else if (row.status === 'cancelled') {
+            clearRunningPrediction(userId);
+            navigate('/prediction');
+          }
+        })
+        .catch(() => {
+          // The next poll tries again. The prediction label stays up until the row changes.
+        });
+    };
+    tick();
+    const id = window.setInterval(tick, 1000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [phase, runId, userId, navigate]);
 
   const cancel = async () => {
     setChoosing(true);
@@ -224,10 +265,10 @@ const PredictionRun: React.FC<{ userId: string; runId: string; name: string }> =
     setPhase('predict');
   };
 
-  const ndviDone = phase === 'predict' || phase === 'done';
+  const ndviDone = phase === 'predict' || phase === 'done' || phase === 'modelFailed';
   const predictActive = phase === 'predict';
   const predictDone = phase === 'done';
-  const waitingOnFarmer = phase === 'warn' || phase === 'failed';
+  const waitingOnFarmer = phase === 'warn' || phase === 'failed' || phase === 'modelFailed';
   const phaseLabel = ndviDone ? t('prediction.predictPhase') : t('prediction.ndviPhase');
 
   return (
@@ -272,15 +313,8 @@ const PredictionRun: React.FC<{ userId: string; runId: string; name: string }> =
           )}
 
           {phase === 'predict' && (
-            <div
-              className="h-1.5 rounded-full bg-cf-hero overflow-hidden"
-              role="progressbar"
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={Math.round(progress * 100)}
-              aria-valuetext={phaseLabel}
-            >
-              <div className="h-full bg-cf-primary rounded-full" style={{ width: `${progress * 100}%` }} />
+            <div className="h-1.5 rounded-full bg-cf-hero overflow-hidden" role="progressbar" aria-valuetext={phaseLabel}>
+              <div className="cf-indeterminate h-full bg-cf-primary rounded-full" />
             </div>
           )}
 
@@ -294,12 +328,20 @@ const PredictionRun: React.FC<{ userId: string; runId: string; name: string }> =
                 <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-cf-primary" aria-hidden="true" />
                 <div className="space-y-1">
                   <p className="text-sm font-medium text-cf-text">
-                    {t(phase === 'failed' ? 'prediction.ndviFailedTitle' : 'prediction.ndviWarningTitle')}
+                    {t(
+                      phase === 'modelFailed'
+                        ? 'prediction.modelFailedTitle'
+                        : phase === 'failed'
+                          ? 'prediction.ndviFailedTitle'
+                          : 'prediction.ndviWarningTitle',
+                    )}
                   </p>
                   <p className="text-sm text-cf-text leading-relaxed">
-                    {phase === 'failed'
-                      ? t('prediction.ndviFailedBody')
-                      : t('prediction.ndviWarningBody', { date: formatObserved(observedOn, locale) })}
+                    {phase === 'modelFailed'
+                      ? t('prediction.modelFailedBody')
+                      : phase === 'failed'
+                        ? t('prediction.ndviFailedBody')
+                        : t('prediction.ndviWarningBody', { date: formatObserved(observedOn, locale) })}
                   </p>
                   {phase === 'warn' && <p className="text-sm text-cf-muted leading-relaxed">{t('prediction.overrideHint')}</p>}
                 </div>
@@ -337,7 +379,7 @@ const PredictionRun: React.FC<{ userId: string; runId: string; name: string }> =
       {phase === 'done' && (
         <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {PREDICTION_KINDS.map((kind) => (
-            <ResultCard key={kind} kind={kind} />
+            <ResultCard key={kind} kind={kind} crop={results?.[CHOICE_KEY[kind]] ?? null} />
           ))}
         </ul>
       )}
@@ -371,12 +413,12 @@ const PhaseRow: React.FC<{
   </li>
 );
 
-const ResultCard: React.FC<{ kind: PredictionKind }> = ({ kind }) => {
+const ResultCard: React.FC<{ kind: PredictionKind; crop: string | null }> = ({ kind, crop }) => {
   const { t } = useLanguage();
   return (
     <li className="bg-cf-panel border border-cf-primary/18 rounded-2xl p-5 sm:p-6 space-y-2">
       <h2 className="text-base font-semibold text-cf-text">{t(`prediction.kind.${kind}`)}</h2>
-      <p className="text-sm text-cf-muted leading-relaxed">{t('prediction.placeholder')}</p>
+      <p className="text-sm text-cf-text leading-relaxed">{crop || t('prediction.noCrop')}</p>
     </li>
   );
 };

@@ -1,6 +1,6 @@
 # Prediction pipeline
 
-Phase 1 is the NDVI check. Phase 2 is still the 20 second placeholder on the page. There is no separate HTTP API: the browser uses the Supabase client. Localhost uses a Python worker. When that worker is not running, the site starts the same check once on GitHub Actions.
+Phase 1 is the NDVI check. Phase 2 is the crop model in `backend/predictor/predictor_model.py`. There is no separate HTTP API: the browser uses the Supabase client. Localhost uses two Python workers. When the NDVI worker is not running, the site starts the check once on GitHub Actions. When that check reaches the model and the row was started on GitHub, the site starts the model once on GitHub Actions too.
 
 ## What the farmer sees
 
@@ -10,13 +10,13 @@ Pressing Predict writes `fields.prediction_requested_on` (the local calendar day
 
 `/prediction/fields/:id` then shows two labels, in both languages: "NDVI verification" / "Έλεγχος NDVI", then "Prediction" / "Πρόβλεψη".
 
-1. NDVI verification stays on screen, with an indeterminate bar, until `ndvi_checker.py` finishes. There is no 5 second timer. The checker does not report a percentage. A `local` row is cancelled if the heartbeat goes stale, so a stopped terminal does not leave the request running. A `github` row stays on this screen through the Actions queue and the package install. If it is still `ndvi` or `running` after 25 minutes, the page cancels it and shows the same infrastructure message.
-2. If `vegetated` is true, the warning says "As of {date}, this field has vegetation." `{date}` is the Sentinel-2 day the checker returned (`observed_on`). **Cancel prediction** sets the row to `cancelled`, clears the lock, and returns to `/prediction`. **The field is empty** sets the row to `predict`. The checker has already finished, so there is no extra wait before phase 2.
-3. If `vegetated` is false, both warnings are skipped and phase 2 starts.
+1. NDVI verification stays on screen, with an indeterminate bar, until `ndvi_checker.py` finishes. There is no 5 second timer. The checker does not report a percentage. A `local` row is cancelled if the NDVI heartbeat goes stale, so a stopped terminal does not leave the request running. A `github` row stays on this screen through the Actions queue and the package install. If it is still `ndvi` or `running` after 25 minutes, the page cancels it and shows the infrastructure message.
+2. If `vegetated` is true, the warning says "As of {date}, this field has vegetation." `{date}` is the Sentinel-2 day the checker returned (`observed_on`). **Cancel prediction** sets the row to `cancelled`, clears the lock, and returns to `/prediction`. **The field is empty** sets the row to `predict`.
+3. If `vegetated` is false, both warnings are skipped and the row is already `predict`.
 4. If the checker exits 2, crashes, or returns no date, the page says the check could not be completed. The only action is **Cancel prediction**. A new request can then start.
-5. Prediction still runs for 20 seconds and shows four placeholders, in this order: Environmentally best, Financially best, Current, Balanced. The page then sets the row to `done` and clears the lock.
+5. Prediction stays on screen, with an indeterminate bar, while the row is `predict` or `scoring`. There is no 20 second timer. The model worker writes `done` and the four crop names, or `failed`. A `local` row is cancelled if the predictor heartbeat goes stale. A `github` row calls `dispatch-predict` once. If that call fails, the row is cancelled and the infrastructure message is shown. If a GitHub row is still `predict` or `scoring` 60 minutes after it was created, the page cancels it. The four cards, in order, are Environmentally best, Financially best, Current, and Balanced. If the model fails after the vegetation check succeeded, the page says the prediction could not be completed. The only action is **Cancel prediction**.
 
-Leaving during NDVI keeps the lock. Coming back follows the row, so a finished check shows its warning instead of starting again.
+Leaving during either wait keeps the lock. Coming back follows the row.
 
 ## The checker
 
@@ -36,37 +36,69 @@ Output, one object:
 
 `vegetated` is true when mean NDVI is above the script default 0.3. That threshold stays in the program. Exit 0 means an answer. Exit 2 means no usable date, and `vegetated` and `date` are null. A null answer is a failure, not a vegetation warning.
 
+## The model
+
+`backend/predictor/predictor_model.py`. It reads four JSON files and writes the four choices. Importing the file does not run a prediction.
+
+```text
+python backend/predictor/predictor_model.py --general general-info.json --field field-info.json --seasons farmer-seasons.json --coords field-coords.json --out results.json
+```
+
+The worker builds those files from `model_data`, in a temporary folder, so the demo files are not overwritten. `field-info.json` keeps `answers.maxMonths` and also sets `maxDays` to `maxMonths × 30`. Earth Engine signs in through `SALINITY_GEE_KEY` inside `backend/predictor/salinity/extra_features.py`. That variable is a path to the service-account file, or the JSON text itself. The model call still passes project `firld-512718`.
+
+The result object is:
+
+```json
+{ "environmental": "Barley", "economic": "Cotton", "mixed": "Wheat", "current": "cotton" }
+```
+
+`current` is the previous crop id from the season history. The other three are the names the model returns. A missing choice is JSON `null`, and the card says there is no crop.
+
 ## Requests
 
-`prediction_runs` (migration `20261046_prediction_runs.sql`, plus `via` in `20261048_prediction_via.sql`):
+`prediction_runs` (migration `20261046_prediction_runs.sql`, `via` in `20261048_prediction_via.sql`, `scoring` in `20261051_prediction_scoring.sql`):
 
 - The farmer can read their own rows and insert a row with status `ndvi` for a field they own. `via` is `local` or `github`.
-- `farmer_set_prediction(run_id, choice)` is the only farmer write: `cancel` from `ndvi`, `running`, `needs_override`, or `failed`; `override` from `needs_override`; `finish` from `predict`.
-- The worker, with the service role, writes `vegetated`, `observed_on`, and `error`.
+- `farmer_set_prediction(run_id, choice)` is the only farmer write: `cancel` from `ndvi`, `running`, `needs_override`, `failed`, `predict`, or `scoring`; `override` from `needs_override`; `finish` from `predict`.
+- The NDVI worker, with the service role, writes `vegetated`, `observed_on`, and `error`.
+- The model worker writes `results` and moves the row to `done`, or `failed` and `error`.
 
-The page polls its row about once a second. The terminal worker polls about every 2 seconds. The only call that is not a table read or write is `dispatch-ndvi`, which asks GitHub to start one run.
+The page polls its row about once a second. Each terminal worker polls about every 2 seconds. The calls that are not a table read or write are `dispatch-ndvi` and `dispatch-predict`, which ask GitHub to start one run.
 
-## Worker
+## Workers
 
 ```text
 python backend/worker/ndvi_worker.py
 python backend/worker/ndvi_worker.py --once
+python backend/worker/predictor_worker.py
+python backend/worker/predictor_worker.py --once
 ```
 
-It needs `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` in the environment or `backend/.env`. The anon key in `web/.env.local` cannot write the checker's answer.
+Both need `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` in the environment or `backend/.env`. The predictor worker also needs `SALINITY_GEE_KEY` and `SALINITY_GEE_PROJECT` there for a local run. The anon key in `web/.env.local` cannot write either answer.
 
-With no flag, it writes a heartbeat every 2 seconds and claims only `via = local` rows. `--once` reads `RUN_ID`, claims that row only when it is still `ndvi` and `via = github`, runs the checker, and exits. It does not write a heartbeat. A second run that finds the row already taken exits without running the checker again.
+With no flag, the NDVI worker writes a heartbeat `id = ndvi` and claims only `via = local` rows in `ndvi`. Its `--once` reads `RUN_ID`, claims that row only when it is still `ndvi` and `via = github`, runs the checker, and exits. It does not write a heartbeat.
 
-Either start then:
+With no flag, the predictor worker writes a heartbeat `id = predictor` and claims only `via = local` rows in `predict`. It sets them to `scoring`, runs the model, then stores the result. Its `--once` claims `RUN_ID` only when it is still `predict` and `via = github`, does not write a heartbeat, and exits. A second run that finds the row already taken exits without running the model again.
+
+NDVI outcomes:
 
 - vegetated true: status `needs_override`, store the date
 - vegetated false: status `predict`, store the date
 - no answer, or a crash: status `failed`, no invented date
 
-Rows already in `predict` are left for the page. Phase 2's model is not called yet.
+Model outcomes:
+
+- four choices written: status `done`, `results` stored
+- a crash or a timeout: status `failed`, `error` stored
 
 ## GitHub Actions
 
-The workflow is `.github/workflows/ndvi.yml` in the cropfather repository. It runs on `repository_dispatch` of type `ndvi`, on `ubuntu-latest`, with a 30 minute timeout. It installs the checker's packages and runs `python backend/worker/ndvi_worker.py --once` with `RUN_ID` from the dispatch payload.
+Both workflows are in the cropfather repository.
 
-`supabase/functions/dispatch-ndvi/index.ts` checks the caller's JWT, checks that the row is theirs, still `ndvi`, and `via = github`, then `POST`s `https://api.github.com/repos/Christos7605/cropfather/dispatches` with `event_type` `ndvi` and `client_payload.run_id`. The token is the Supabase secret `GITHUB_DISPATCH_TOKEN`. Deploy that function with Verify JWT on. The workflow file and the function live in the cropfather repository. The page and the worker are the same in both copies.
+`.github/workflows/ndvi.yml` runs on `repository_dispatch` of type `ndvi`, on `ubuntu-latest`, with a 30 minute timeout. It installs the checker's packages and runs `python backend/worker/ndvi_worker.py --once` with `RUN_ID` from the dispatch payload.
+
+`.github/workflows/predict.yml` runs on `repository_dispatch` of type `predict`, on `ubuntu-latest`, with a 45 minute timeout. It installs the checker packages plus Earth Engine, pandas, joblib, and scikit-learn. It sets `SALINITY_GEE_KEY` to the `GEE_SERVICE_ACCOUNT_JSON` secret and `SALINITY_GEE_PROJECT` to `firld-512718`, then runs `python backend/worker/predictor_worker.py --once`.
+
+`supabase/functions/dispatch-ndvi/index.ts` checks the caller's JWT, checks that the row is theirs, still `ndvi`, and `via = github`, then dispatches event type `ndvi`. `supabase/functions/dispatch-predict/index.ts` does the same for a row still in `predict`, and dispatches event type `predict`. Both use the Supabase secret `GITHUB_DISPATCH_TOKEN`. Deploy each function with Verify JWT on. The workflow files and the functions live in the cropfather repository. The page and both workers are the same in both copies.
+
+The first model run downloads the Natural Earth coastline into `backend/predictor/salinity/extra_features_cache/`. That folder is gitignored.
