@@ -27,11 +27,21 @@ What is added
 Each part is saved in extra_features_cache/ as soon as it is done, so a second run only
 redoes what is missing (delete a cache file to redo that part).
 
+Earth Engine sign-in, first match wins:
+  1. a service account JSON key (for the website / any server - no login needed):
+         --key path/to/key.json      or the environment variable SALINITY_GEE_KEY
+     SALINITY_GEE_KEY may hold the path to the key file OR the JSON text itself.
+     The project is taken from the key ("project_id") unless --project is given.
+  2. your personal login (on your own PC): earthengine authenticate, or the script opens it.
+     Never on a server: there is nobody to click the login there, so it fails instead.
+
 Needs: python -m pip install earthengine-api pandas numpy shapely pyproj rasterio requests
-First time only: earthengine authenticate   (or the script opens the login itself)
 """
 import argparse
 import json
+import os
+import sys
+import threading
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -121,13 +131,51 @@ def gee_image(ee):
     return ee.Image.cat([soil, terrain, clim, npp])
 
 
-def gee_features(df, project):
+_EE_LOCK = threading.Lock()
+_EE_READY = False
+
+
+def _read_key(key):
+    """Service account key as (json_text, dict). `key` is a file path or the JSON text itself."""
+    text = key if key.lstrip().startswith("{") else Path(key).expanduser().read_text(encoding="utf-8")
+    info = json.loads(text)
+    if info.get("type") != "service_account" or "client_email" not in info:
+        raise ValueError("the Earth Engine key is not a service account JSON key")
+    return text, info
+
+
+def init_ee(project=None, key=None):
+    """Sign in to Earth Engine once per process (see the top of the file for the order)."""
+    global _EE_READY
     import ee
-    try:
-        ee.Initialize(project=project)
-    except Exception:
-        ee.Authenticate()
-        ee.Initialize(project=project)
+    with _EE_LOCK:
+        if _EE_READY:
+            return ee
+        key = key or os.environ.get("SALINITY_GEE_KEY")
+        if key:
+            text, info = _read_key(key)
+            creds = ee.ServiceAccountCredentials(info["client_email"], key_data=text)
+            ee.Initialize(creds, project=project or info.get("project_id"))
+            print(f"  Earth Engine: service account {info['client_email']}")
+        else:
+            if not project:
+                raise ValueError("Earth Engine needs a service account key (--key / SALINITY_GEE_KEY) "
+                                 "or a project for your personal login (--project)")
+            try:
+                ee.Initialize(project=project)
+            except Exception:
+                if not sys.stdin or not sys.stdin.isatty():   # server / background job: can't log in
+                    raise RuntimeError("Earth Engine login needed but nobody can log in here - "
+                                       "set SALINITY_GEE_KEY to a service account JSON key")
+                ee.Authenticate()
+                ee.Initialize(project=project)
+            print("  Earth Engine: personal login")
+        _EE_READY = True
+        return ee
+
+
+def gee_features(df, project=None, key=None):
+    ee = init_ee(project, key)
     img = gee_image(ee)
     bands = img.bandNames().getInfo()
     print(f"  {len(bands)} bands: {', '.join(bands)}")
@@ -194,7 +242,9 @@ def main():
     ap = argparse.ArgumentParser(description="Add salinity predictors to a CSV with POINTID, TH_LAT, TH_LONG.")
     ap.add_argument("--csv", required=True)
     ap.add_argument("--out", required=True)
-    ap.add_argument("--project", help="Google Cloud project registered for Earth Engine")
+    ap.add_argument("--project", help="Google Cloud project registered for Earth Engine "
+                                      "(optional with a service account key: taken from the key)")
+    ap.add_argument("--key", help="service account JSON key file (else SALINITY_GEE_KEY)")
     ap.add_argument("--raster", nargs="*", default=[], metavar="FILE.tif:column")
     ap.add_argument("--skip", nargs="*", default=[], choices=["coast", "gee", "rasters"])
     args = ap.parse_args()
@@ -205,9 +255,9 @@ def main():
     if "coast" not in args.skip:
         parts.append(cached("coast", coast_distance, df))
     if "gee" not in args.skip:
-        if not args.project:
-            ap.error("--project is needed for Earth Engine (or use --skip gee)")
-        parts.append(cached("gee", gee_features, df, args.project))
+        if not (args.project or args.key or os.environ.get("SALINITY_GEE_KEY")):
+            ap.error("Earth Engine needs --key (or SALINITY_GEE_KEY) or --project (or use --skip gee)")
+        parts.append(cached("gee", gee_features, df, args.project, args.key))
     if args.raster and "rasters" not in args.skip:
         parts.append(raster_values(df, args.raster))     # local and fast: never cached
 

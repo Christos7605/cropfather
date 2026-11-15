@@ -4,10 +4,6 @@ from all_field_data import get_field_data
 import sys
 from pathlib import Path
 
-import time
-start_time = time.time()
-
-
 # File Paths
 CROPS_PATH = Path(__file__).parent / "model_data/crops.json"
 DEMO_FIELD = Path(__file__).parent / "model_data/website_data/field-coords.json"            # coords + date
@@ -318,5 +314,3 @@ else:
     note = f"   !! removed by pruning: {'; '.join(removed[current])}" if current in removed else ""
     print(f"  {'Continue current':<20} {describe(current, current_score)}{note}")
     
-    
-print("--- %s seconds ---" % (time.time() - start_time))

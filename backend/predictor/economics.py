@@ -55,6 +55,7 @@ YOUNG_FARMER_SCHEME = "Π1-30"
 NO_REVENUE_PRICE_KINDS = {"mock"}
 
 
+
 # ================================================================================================
 #  Reference data
 # ================================================================================================
@@ -75,7 +76,7 @@ def load_reference(url: str | None = None, key: str | None = None,
         pass
 
     url = (url or os.environ["SUPABASE_URL"]).rstrip("/")
-    key = key or os.environ["SUPABASE_KEY"]
+    key = key or os.environ["SUPABASE_SERVICE_ROLE_KEY"]
     headers = {"apikey": key, "Authorization": f"Bearer {access_token or key}"}
 
     def get(table: str, select: str) -> list[dict]:
