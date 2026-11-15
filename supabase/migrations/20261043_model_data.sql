@@ -19,6 +19,16 @@
 
 begin;
 
+alter table public.crop_history
+  add column if not exists extra_cost_eur_ha numeric;
+
+alter table public.crop_history
+  drop constraint if exists crop_history_extra_cost_check;
+
+alter table public.crop_history
+  add constraint crop_history_extra_cost_check
+  check (extra_cost_eur_ha is null or (extra_cost_eur_ha >= 0 and extra_cost_eur_ha <= 20000));
+
 alter table public.fields
   add column if not exists prediction_requested_on date;
 
@@ -82,6 +92,7 @@ select
           'seed_eur_ha',            sf.seed_eur_ha,
           'contract_work_eur_ha',   sf.contract_work_eur_ha,
           'irrigation_eur_ha',      sf.irrigation_eur_ha,
+          'extra_eur_ha',           h.extra_cost_eur_ha,
           'total_eur_ha',           sf.total_cost_eur_ha,
           'complete',               sf.cost_complete,
           'estimated',              sf.cost_estimated

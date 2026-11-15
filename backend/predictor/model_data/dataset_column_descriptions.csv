@@ -1,0 +1,51 @@
+column,old_name,description
+sample_depth,Depth,LUCAS sampling depth (0-20 cm for almost all points)
+lucas_point_id,POINTID,LUCAS 2018 point ID
+target_ec_1to5_mS_per_m,EC,"TARGET: measured soil EC, 1:5 soil:water extract, mS/m (/100 = dS/m)"
+latitude,TH_LAT,Latitude (degrees)
+longitude,TH_LONG,Longitude (degrees)
+elevation_m,elevation_mean_m,Mean height above sea level of the square (Copernicus DEM 30 m)
+slope_deg,slope_deg,Terrain slope in degrees (MERIT DEM)
+height_above_drainage_m,hand_m,"Height above the nearest river/drain; low = wet, shallow groundwater"
+terrain_position_300m,tpi_300m,Height vs. surroundings within 300 m (m); negative = hollow
+terrain_position_1km,tpi_1km,Height vs. surroundings within 1 km (m); negative = valley/basin
+distance_to_coast_km,dist_coast_km,"Distance to the sea coastline (Natural Earth), km"
+soil_clay_pct,soil_clay_pct,"Clay content, % (SoilGrids, 0-30 cm)"
+soil_sand_pct,soil_sand_pct,"Sand content, % (SoilGrids, 0-30 cm)"
+soil_ph,sg_ph,Soil pH in water (0-20 cm); above ~7.8 = likely limestone soil
+soil_cec_cmol_per_kg,sg_cec,"Cation exchange capacity, cmol(c)/kg (0-20 cm)"
+soil_organic_carbon_g_per_kg,sg_soc,"Soil organic carbon, g/kg (0-20 cm)"
+soil_bulk_density_kg_per_dm3,sg_bdod,"Bulk density, kg/dm3 (0-20 cm)"
+soil_coarse_fragments_pct,sg_cfvo,"Stones/gravel, volume % (0-20 cm)"
+rain_90d_mm,rain_mm,"Rainfall, 90 days before sampling (GPM IMERG), mm"
+air_temp_min_90d_c,temp_air_min_c,"Coldest daily minimum air temperature, 90 days (NASA POWER), C"
+air_temp_mean_90d_c,temp_air_mean_c,"Average daily air temperature, 90 days, C"
+air_temp_max_90d_c,temp_air_max_c,"Hottest daily maximum air temperature, 90 days, C"
+actual_et_90d_mm,et_mean_mm,"Water actually evaporated + transpired, 90 days (ECOSTRESS/MODIS), mm"
+reference_et0_90d_mm,et_et0_mm,"Reference evaporation demand ET0 (FAO-56), 90 days, mm"
+et_ratio_actual_over_ref_90d,et_kc_mean,Actual ET / reference ET0; low = dry or stressed surface
+rain_10yr_mm_per_year,clim_pr_mm,"Average yearly rainfall, mm"
+potential_et_10yr_mm_per_year,clim_pet_mm,"Average yearly evaporation demand, mm"
+actual_et_10yr_mm_per_year,clim_aet_mm,"Average yearly actual evaporation, mm"
+water_deficit_10yr_mm_per_year,clim_def_mm,"Average yearly water deficit (demand not met by rain), mm"
+air_temp_max_10yr_avg_c,clim_tmax_c,"Average of monthly maximum temperatures, C"
+air_temp_min_10yr_avg_c,clim_tmin_c,"Average of monthly minimum temperatures, C"
+soil_moisture_10yr_mm,clim_soil_mm,"Average soil moisture, mm"
+drought_index_10yr,clim_pdsi,Palmer drought index; negative = drier than normal
+aridity_rain_over_pet_10yr,clim_aridity,Rain / evaporation demand; below 0.5 = semi-arid or drier
+plant_growth_npp_kgC_m2_per_year,npp_kgc_m2,"Net primary production, MODIS 2014-2018 mean"
+si2_salinity_baresoil_60d_avg,index_SI2_mean_mean,"SI2 salinity index, bare-soil pixels only (NDVI < 0.33); 60 days, average"
+si2_salinity_baresoil_60d_lowest,index_SI2_mean_min,"SI2 salinity index, bare-soil pixels only (NDVI < 0.33); 60 days, lowest date"
+si2_salinity_baresoil_60d_highest,index_SI2_mean_max,"SI2 salinity index, bare-soil pixels only (NDVI < 0.33); 60 days, highest date"
+ndsi_salinity_baresoil_60d_avg,index_NDSI_mean_mean,"NDSI salinity index, bare-soil pixels only (NDVI < 0.33); 60 days, average"
+ndsi_salinity_baresoil_60d_lowest,index_NDSI_mean_min,"NDSI salinity index, bare-soil pixels only (NDVI < 0.33); 60 days, lowest date"
+ndsi_salinity_baresoil_60d_highest,index_NDSI_mean_max,"NDSI salinity index, bare-soil pixels only (NDVI < 0.33); 60 days, highest date"
+ndvi_vegetation_60d_avg,index_NDVI_mean_mean,"NDVI vegetation greenness, all pixels; 60 days, average"
+ndvi_vegetation_60d_lowest,index_NDVI_mean_min,"NDVI vegetation greenness, all pixels; 60 days, lowest date"
+ndvi_vegetation_60d_highest,index_NDVI_mean_max,"NDVI vegetation greenness, all pixels; 60 days, highest date"
+ndmi_moisture_60d_avg,index_NDMI_mean_mean,"NDMI vegetation/surface moisture, all pixels; 60 days, average"
+ndmi_moisture_60d_lowest,index_NDMI_mean_min,"NDMI vegetation/surface moisture, all pixels; 60 days, lowest date"
+ndmi_moisture_60d_highest,index_NDMI_mean_max,"NDMI vegetation/surface moisture, all pixels; 60 days, highest date"
+crsi_canopy_salinity_60d_avg,index_CRSI_mean_mean,"CRSI canopy response salinity index, all pixels; 60 days, average"
+crsi_canopy_salinity_60d_lowest,index_CRSI_mean_min,"CRSI canopy response salinity index, all pixels; 60 days, lowest date"
+crsi_canopy_salinity_60d_highest,index_CRSI_mean_max,"CRSI canopy response salinity index, all pixels; 60 days, highest date"

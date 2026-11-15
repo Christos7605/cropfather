@@ -1,0 +1,202 @@
+{
+  "model_trained": "2026-11-14T07:35:46",
+  "fields": [
+    {
+      "field": 1,
+      "centre": {
+        "lon": 22.52365,
+        "lat": 38.8211
+      },
+      "end_date": "2023-07-31",
+      "salinity_from": "full model",
+      "salinity": {
+        "ec_1to5_dS_m": {
+          "low": 0.143,
+          "most_likely": 0.28,
+          "high": 0.432
+        },
+        "ece_dS_m": {
+          "low": 0.14,
+          "most_likely": 0.88,
+          "high": 2.19
+        },
+        "class": "non-saline",
+        "chance_elevated": 0.04,
+        "calcareous_soil": true,
+        "likely_gypsum": false,
+        "distance_to_coast_km": 3.85
+      },
+      "crops": [
+        {
+          "crop": "cotton",
+          "season": "summer",
+          "salt_limit_ece": 7.7,
+          "yield_loss_per_dS_m": 5.2,
+          "yield_expected": 100.0,
+          "yield_best": 100.0,
+          "yield_worst": 100.0,
+          "verdict": "safe",
+          "soil_ph": "tolerated"
+        },
+        {
+          "crop": "maize",
+          "season": "summer",
+          "salt_limit_ece": 1.7,
+          "yield_loss_per_dS_m": 12.0,
+          "yield_expected": 100.0,
+          "yield_best": 100.0,
+          "yield_worst": 94.1,
+          "verdict": "safe",
+          "soil_ph": "tolerated"
+        },
+        {
+          "crop": "rice",
+          "season": "summer",
+          "salt_limit_ece": 3.0,
+          "yield_loss_per_dS_m": 12.0,
+          "yield_expected": 100.0,
+          "yield_best": 100.0,
+          "yield_worst": 100.0,
+          "verdict": "safe",
+          "soil_ph": "tolerated"
+        },
+        {
+          "crop": "soybean",
+          "season": "summer",
+          "salt_limit_ece": 5.0,
+          "yield_loss_per_dS_m": 20.0,
+          "yield_expected": 100.0,
+          "yield_best": 100.0,
+          "yield_worst": 100.0,
+          "verdict": "safe",
+          "soil_ph": "tolerated"
+        },
+        {
+          "crop": "sunflower",
+          "season": "summer",
+          "salt_limit_ece": 4.8,
+          "yield_loss_per_dS_m": 5.0,
+          "yield_expected": 100.0,
+          "yield_best": 100.0,
+          "yield_worst": 100.0,
+          "verdict": "safe",
+          "soil_ph": "tolerated"
+        },
+        {
+          "crop": "sorghum",
+          "season": "summer",
+          "salt_limit_ece": 6.8,
+          "yield_loss_per_dS_m": 16.0,
+          "yield_expected": 100.0,
+          "yield_best": 100.0,
+          "yield_worst": 100.0,
+          "verdict": "safe",
+          "soil_ph": "tolerated"
+        },
+        {
+          "crop": "peanut",
+          "season": "summer",
+          "salt_limit_ece": 3.2,
+          "yield_loss_per_dS_m": 29.0,
+          "yield_expected": 100.0,
+          "yield_best": 100.0,
+          "yield_worst": 100.0,
+          "verdict": "safe",
+          "soil_ph": "tolerated"
+        },
+        {
+          "crop": "sugar_beet",
+          "season": "summer",
+          "salt_limit_ece": 7.0,
+          "yield_loss_per_dS_m": 5.9,
+          "yield_expected": 100.0,
+          "yield_best": 100.0,
+          "yield_worst": 100.0,
+          "verdict": "safe",
+          "soil_ph": "tolerated"
+        },
+        {
+          "crop": "clover",
+          "season": "spring",
+          "salt_limit_ece": 2.0,
+          "yield_loss_per_dS_m": 7.3,
+          "yield_expected": 100.0,
+          "yield_best": 100.0,
+          "yield_worst": 98.6,
+          "verdict": "safe",
+          "soil_ph": "tolerated"
+        },
+        {
+          "crop": "durum_wheat",
+          "season": "winter",
+          "salt_limit_ece": 5.7,
+          "yield_loss_per_dS_m": 3.8,
+          "yield_expected": 100.0,
+          "yield_best": 100.0,
+          "yield_worst": 100.0,
+          "verdict": "safe",
+          "soil_ph": "tolerated"
+        },
+        {
+          "crop": "barley",
+          "season": "winter",
+          "salt_limit_ece": 8.0,
+          "yield_loss_per_dS_m": 5.0,
+          "yield_expected": 100.0,
+          "yield_best": 100.0,
+          "yield_worst": 100.0,
+          "verdict": "safe",
+          "soil_ph": "tolerated"
+        },
+        {
+          "crop": "soft_wheat",
+          "season": "winter",
+          "salt_limit_ece": 6.0,
+          "yield_loss_per_dS_m": 7.1,
+          "yield_expected": 100.0,
+          "yield_best": 100.0,
+          "yield_worst": 100.0,
+          "verdict": "safe",
+          "soil_ph": "tolerated"
+        },
+        {
+          "crop": "rapeseed",
+          "season": "winter",
+          "salt_limit_ece": 11.0,
+          "yield_loss_per_dS_m": 13.0,
+          "yield_expected": 100.0,
+          "yield_best": 100.0,
+          "yield_worst": 100.0,
+          "verdict": "safe",
+          "soil_ph": "tolerated"
+        },
+        {
+          "crop": "common_vetch",
+          "season": "winter",
+          "salt_limit_ece": 3.0,
+          "yield_loss_per_dS_m": 11.0,
+          "yield_expected": 100.0,
+          "yield_best": 100.0,
+          "yield_worst": 100.0,
+          "verdict": "safe",
+          "soil_ph": "tolerated"
+        },
+        {
+          "crop": "field_pea",
+          "season": "winter",
+          "salt_limit_ece": 3.4,
+          "yield_loss_per_dS_m": 10.6,
+          "yield_expected": 100.0,
+          "yield_best": 100.0,
+          "yield_worst": 100.0,
+          "verdict": "safe",
+          "soil_ph": "tolerated"
+        }
+      ],
+      "notes": [
+        "limestone (calcareous) soil: about 0.2 dS/m of the reading is dissolved lime, not salt",
+        "a soil salinity test (ECe) would settle the risky crops - pass it as measured=..."
+      ]
+    }
+  ]
+}

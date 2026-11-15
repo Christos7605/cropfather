@@ -1,0 +1,101 @@
+{
+  "farmer": {
+    "user_id": "11111111-2222-4333-8444-555555555555",
+    "language": "el"
+  },
+  "farm_questionnaire": {
+    "version": "v1-draft",
+    "status": "submitted",
+    "answers": {
+      "priorities": ["saveWater", "raiseIncome", "cutCosts"],
+      "excluded_crops": ["cotton", "sunflower", "sorghum", "peanut"],
+      "max_days": 300,
+      "tenure": "mostlyOwn",
+      "labour": "family",
+      "machinery": "own",
+      "experience": "15to30"
+    }
+  },
+  "fields": [
+    {
+      "field_id": "aaaa1111-bbbb-4ccc-8ddd-eeeeeeee0001",
+      "name": "Κάτω Κάμπος",
+      "area_ha": 4.85,
+      "perimeter_m": 912,
+      "irrigation": "full",
+      "centroid": {
+        "lat": 39.63912,
+        "lon": 22.41935
+      },
+      "elevation_m": 74,
+      "slope_deg": 0.6,
+      "boundary_source": "cadastre",
+      "kaek": "311080212004",
+      "water_source": {
+        "water_point_id": 40218,
+        "well_code": "EMSY-TH-00418",
+        "well_kind": "borehole",
+        "well_status": "active",
+        "well_depth_m": 125,
+        "pump_depth_m": 88
+      },
+      "field_questionnaire": {
+        "version": "v2-draft",
+        "status": "submitted",
+        "answers": {
+          "dryYears": [2023, 2024],
+          "wetYears": [2023],
+          "dryMonths": [6, 7, 8, 9],
+          "waterShortage": 3,
+          "frost": "sometimes",
+          "soilTexture": "clay",
+          "drainage": "days",
+          "salinity": "some",
+          "lastSoilTest": 2024,
+          "notes": "Low spot on the east edge holds water after heavy storms."
+        }
+      },
+      "crop_history": [
+        {
+          "season_id": 103,
+          "season_year": 2026,
+          "crop_id": "maize",
+          "sown_on": "2026-04-12",
+          "harvested_on": "2026-09-20",
+          "tillage": "plough",
+          "residues": "incorporate",
+          "nitrogen": "high",
+          "irrigation": "full",
+          "yield_outcome": "normal",
+          "notes": "High pumping cost in August due to heatwave."
+        },
+        {
+          "season_id": 102,
+          "season_year": 2025,
+          "crop_id": "cotton",
+          "sown_on": "2025-04-20",
+          "harvested_on": "2025-10-15",
+          "tillage": "plough",
+          "residues": "incorporate",
+          "nitrogen": "normal",
+          "irrigation": "full",
+          "yield_outcome": "poor",
+          "notes": "Bollworm pressure late in August."
+        },
+        {
+          "season_id": 101,
+          "season_year": 2024,
+          "crop_id": "wheat_durum",
+          "sown_on": "2023-11-18",
+          "harvested_on": "2024-06-22",
+          "tillage": "reduced",
+          "residues": "remove",
+          "nitrogen": "normal",
+          "irrigation": "none",
+          "yield_outcome": "good",
+          "notes": null
+        }
+      ]
+    }
+  ]
+}

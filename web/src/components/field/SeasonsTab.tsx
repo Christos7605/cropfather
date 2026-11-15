@@ -346,7 +346,7 @@ export const SeasonsTab: React.FC<{
               const n = seasonApps.reduce((sum, a) => sum + (nutrientKgPerStremma(a, 'n_pct') ?? 0), 0);
               const seasonSeeds = seedsBySeason.get(s.id) ?? [];
               const water = irrigationCost(s, irrigationBySeason.get(s.id) ?? null, field, irrParams, irrBaselines);
-              const cost = seasonCostPerStremma(seasonApps, seasonProts, seasonSeeds, water);
+              const cost = seasonCostPerStremma(seasonApps, seasonProts, seasonSeeds, water, s.extra_cost_eur_ha);
               const showWater = water.basis !== 'not_irrigated' && water.basis !== 'ongoing';
               const seedKg = seasonSeeds.reduce((sum, sd) => sum + (sd.rate_kg_ha ?? 0), 0) / STREMMA_PER_HA;
               const seedNames = [...new Set(seasonSeeds.map((sd) => sd.variety_name).filter((n): n is string => Boolean(n)))];

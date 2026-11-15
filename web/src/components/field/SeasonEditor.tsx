@@ -27,6 +27,7 @@ import {
   SEASON_DETAILS,
   cropName,
   daysBetween,
+  EXTRA_COST_MAX_STREMMA,
   findOverlap,
   listApplications,
   listIncome,
@@ -36,6 +37,7 @@ import {
   saveSeason,
   seasonCostPerStremma,
   seedCropsOf,
+  STREMMA_PER_HA,
   suggestPeriod,
   todayIso,
   type Crop,
@@ -53,7 +55,7 @@ import {
 import { QuestionInput } from '../questionnaire/QuestionInputs';
 import { secondaryBtn } from '../questionnaire/QuestionnaireWizard';
 import { SeasonTimeline } from './SeasonTimeline';
-import { FertilizerSection, draftFromApplication, draftToInput, validateFert, type FertDraft } from './FertilizerSection';
+import { FertilizerSection, draftFromApplication, draftToInput, parseNum, validateFert, type FertDraft } from './FertilizerSection';
 import { ProtectionSection, draftFromProtection, protToInput, validateProt, type ProtDraft } from './ProtectionSection';
 import { SeedSection, draftFromSeed, seedToInput, validateSeed, type SeedDraft } from './SeedSection';
 import {
@@ -183,6 +185,11 @@ export const SeasonEditor: React.FC<Props> = ({
   const [incomeDraft, setIncomeDraft] = useState<IncomeDraft>(() => incomeDraftFrom(income));
   const [seedDrafts, setSeedDrafts] = useState<SeedDraft[]>(() => seeds.map(draftFromSeed));
   const [irrigationDraft, setIrrigationDraft] = useState<IrrigationDraft>(() => irrigationDraftFrom(irrigation));
+  const [extraCost, setExtraCost] = useState(() => {
+    const ha = season?.extra_cost_eur_ha;
+    if (ha == null || ha <= 0) return '';
+    return String(Math.round((ha / STREMMA_PER_HA) * 1000) / 1000);
+  });
   const varietyById = useMemo(() => new Map(seedVarieties.map((v) => [v.id, v])), [seedVarieties]);
   const [dirty, setDirty] = useState(false);
   const [showErrors, setShowErrors] = useState(false);
@@ -244,7 +251,13 @@ export const SeasonEditor: React.FC<Props> = ({
 
   const fertProblems = ferts.some((f) => Object.keys(validateFert(f)).length > 0);
   const protProblems = prots.some((p) => Object.keys(validateProt(p)).length > 0);
-  const incomeProblems = !ongoing && Object.keys(validateIncome(incomeDraft)).length > 0;
+  const extraValue = parseNum(extraCost);
+  const extraProblem =
+    extraCost.trim() !== '' &&
+    (extraValue === null || Number.isNaN(extraValue) || extraValue < 0 || extraValue > EXTRA_COST_MAX_STREMMA);
+  const extraEurHa =
+    !extraProblem && extraValue != null && extraValue > 0 ? Math.round(extraValue * STREMMA_PER_HA * 100) / 100 : null;
+  const incomeProblems = ((!ongoing && Object.keys(validateIncome(incomeDraft)).length > 0) || extraProblem);
   const seedProblems = Boolean(cropId) && seedDrafts.some((d) => Object.keys(validateSeed(d, cropId)).length > 0);
   const irrigationProblems = Object.keys(validateIrrigation(irrigationDraft)).length > 0;
 
@@ -259,7 +272,7 @@ export const SeasonEditor: React.FC<Props> = ({
     [cropId, irrigationSeason, irrigationDraft, field, irrigationParams, irrigationBaselines],
   );
 
-  // Costs recorded in the Fertilisers and Plant protection steps, per stremma (for the Income step)
+  // Costs recorded on this season, per stremma, including other costs (for the Income step)
   const costs = useMemo(
     () =>
       seasonCostPerStremma(
@@ -267,8 +280,9 @@ export const SeasonEditor: React.FC<Props> = ({
         prots.map((p) => protToInput(p, protProductById)),
         cropId ? seedDrafts.map((d) => seedToInput(d, varietyById, cropId)) : [],
         irrigationResult,
+        extraEurHa,
       ),
-    [ferts, prots, seedDrafts, cropId, productById, protProductById, varietyById, irrigationResult],
+    [ferts, prots, seedDrafts, cropId, productById, protProductById, varietyById, irrigationResult, extraEurHa],
   );
 
   const chooseCrop = (id: string) => {
@@ -351,6 +365,7 @@ export const SeasonEditor: React.FC<Props> = ({
         harvested_on: end,
         ...details,
         yield_outcome: ongoing ? null : details.yield_outcome,
+        extra_cost_eur_ha: extraEurHa,
       };
       const saved = await saveSeason(
         fieldId,
@@ -396,6 +411,7 @@ export const SeasonEditor: React.FC<Props> = ({
     }
     if (id === 'income') {
       if (showErrors && incomeProblems) return { text: '!', tone: 'warn' };
+      if (extraCost.trim() !== '') return { text: '✓', tone: 'ok' };
       return !ongoing && !incomeDraftEmpty(incomeDraft) ? { text: '✓', tone: 'ok' } : { text: '', tone: 'plain' };
     }
     const [count, problems] =
@@ -696,6 +712,12 @@ export const SeasonEditor: React.FC<Props> = ({
                 costs={costs}
                 areaHa={areaHa}
                 showErrors={showErrors}
+                extraCost={extraCost}
+                onExtraCost={(value) => {
+                  setExtraCost(value);
+                  touch();
+                }}
+                extraError={showErrors && extraProblem ? 'seasons.income.otherCostsInvalid' : null}
               />
             )}
 

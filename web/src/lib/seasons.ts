@@ -52,6 +52,8 @@ export interface Season {
   irrigation: SeasonIrrigation | null;
   yield_outcome: YieldOutcome | null;
   notes: string | null;
+  // Other costs of this season, per hectare (rent, fuel, machinery). Empty when none.
+  extra_cost_eur_ha: number | null;
   updated_at: string;
 }
 
@@ -126,7 +128,10 @@ export const NOTES_MAX = 500;
 export const MAX_SEASON_DAYS = 2200;
 
 const COLUMNS =
-  'id, field_id, season_year, crop_id, sown_on, harvested_on, tillage, residues, nitrogen, irrigation, yield_outcome, notes, updated_at';
+  'id, field_id, season_year, crop_id, sown_on, harvested_on, tillage, residues, nitrogen, irrigation, yield_outcome, notes, extra_cost_eur_ha, updated_at';
+
+// Other costs (rent, fuel, machinery) asked per stremma. The database stores euros per hectare.
+export const EXTRA_COST_MAX_STREMMA = 2000;
 
 const fail = (error: { code?: string | null; message: string }) => new FieldError(error.code ?? null, error.message);
 
@@ -483,6 +488,7 @@ export function seasonCostPerStremma(
   prots: Pick<ProtectionApplication, 'dose_per_ha' | 'price_eur_unit' | 'contractor' | 'contractor_eur_ha'>[],
   seeds: Pick<SeedApplication, 'rate_kg_ha' | 'price_eur_kg' | 'contractor' | 'contractor_eur_ha'>[] = [],
   irrigationCostHa: { totalEurHa: number | null; unpriced: number } | null = null,
+  extraEurHa: number | null = null,
 ): {
   seed: number | null;
   irrigation: number | null;
@@ -521,7 +527,8 @@ export function seasonCostPerStremma(
   }
   const irrigation = irrigationCostHa?.totalEurHa ?? null;
   unpriced += irrigationCostHa?.unpriced ?? 0;
-  const parts = [seed, fertilizers, protection, work, irrigation].filter((v): v is number => v !== null);
+  const extra = extraEurHa != null && extraEurHa > 0 ? roundCents(extraEurHa) : null;
+  const parts = [seed, fertilizers, protection, work, irrigation, extra].filter((v): v is number => v !== null);
   const perStremma = (v: number | null) => (v === null ? null : perStremmaEur(v));
   return {
     seed: perStremma(seed),

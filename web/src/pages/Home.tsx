@@ -112,10 +112,9 @@ export const Home: React.FC = () => {
   };
 
   const layers = [
-    { label: t('home.climate'), swatch: 'bg-water', sources: 'NASA POWER, GPM IMERG, NEX-GDDP-CMIP6' },
-    { label: t('home.soil'), swatch: 'bg-clay', sources: 'SoilGrids 2.0 (250 m)' },
-    { label: t('home.terrain'), swatch: 'bg-wheat', sources: 'NASADEM' },
-    { label: t('home.vegetation'), swatch: 'bg-sage', sources: 'HLS, MODIS' },
+    { label: t('home.climate'), swatch: 'bg-water', sources: 'Giovanni IMERG, ISS ECOSTRESS AppEEARS, MODIS v2-v3, LANDSAT-8/9, MERRA-2' },
+    { label: t('home.soil'), swatch: 'bg-clay', sources: 'SoilGrids 2.0, Copernicus DEM, Google Earth Engine' },
+    { label: t('home.water'), swatch: 'bg-sage', sources: 'YPEN' },
   ];
 
   return (

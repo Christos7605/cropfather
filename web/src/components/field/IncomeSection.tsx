@@ -129,20 +129,56 @@ interface Props {
   areaHa: number | null;
   cropLabel: string;
   showErrors: boolean;
+  extraCost: string;
+  onExtraCost: (value: string) => void;
+  extraError?: MessageKey | null;
 }
 
-export const IncomeSection: React.FC<Props> = ({ draft, onChange, crop, season, factors, costs, areaHa, cropLabel, showErrors }) => {
+export const IncomeSection: React.FC<Props> = ({
+  draft,
+  onChange,
+  crop,
+  season,
+  factors,
+  costs,
+  areaHa,
+  cropLabel,
+  showErrors,
+  extraCost,
+  onExtraCost,
+  extraError,
+}) => {
   const { t, locale } = useLanguage();
   const errors = showErrors ? validateIncome(draft) : {};
   const set = (patch: Partial<IncomeDraft>) => onChange({ ...draft, ...patch });
   const fmt = (v: number, max = 2) => v.toLocaleString(locale, { maximumFractionDigits: max });
   const money = (v: number) => v.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+  const extraField = (
+    <Group title={t('seasons.income.otherCosts')} desc={t('seasons.income.otherCostsDesc')}>
+      <NumberField
+        id="fs-extra-cost"
+        label={t('seasons.income.otherCosts')}
+        unit={t('seasons.income.unitEurStremma')}
+        value={extraCost}
+        onChange={onExtraCost}
+        placeholder="0"
+        hint={t('seasons.income.otherCostsHint')}
+        error={extraError ?? undefined}
+      />
+    </Group>
+  );
+
   if (!crop) {
     return <Notice icon={Info} text={t('seasons.income.chooseCrop')} />;
   }
   if (season.sown_on && !season.harvested_on) {
-    return <Notice icon={Clock} text={t('seasons.income.ongoing')} />;
+    return (
+      <div className="space-y-5">
+        {extraField}
+        <Notice icon={Clock} text={t('seasons.income.ongoing')} />
+      </div>
+    );
   }
 
   const product = crop.main_product ?? 'other';
@@ -327,6 +363,8 @@ export const IncomeSection: React.FC<Props> = ({ draft, onChange, crop, season, 
           </Group>
         </>
       )}
+
+      {extraField}
 
       {/* Result */}
       <section className="rounded-xl border border-cf-border bg-cf-panel px-4 sm:px-5 py-4 space-y-3" aria-labelledby="fs-income-result">

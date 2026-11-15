@@ -68,4 +68,11 @@ begin
 end;
 $$;
 
+alter table public.service_area enable row level security;
+
+drop policy if exists "service_area_read" on public.service_area;
+create policy "service_area_read" on public.service_area
+  for select to authenticated
+  using (true);
+
 commit;
