@@ -1,0 +1,728 @@
+@import "tailwindcss";
+
+/* ------------------------------------------------------------------
+   Field Shift design tokens
+   Ground    : dusk slate-green, lifted so it is easy on the eye
+   NASA      : blue for actions, red-orange only as a tiny signal
+   Earth     : water / soil / wheat / crop, used to encode data meaning
+   ------------------------------------------------------------------ */
+@theme {
+  --font-sans: 'Google Sans', 'Public Sans', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-display: 'Google Sans', 'Bricolage Grotesque', 'Public Sans', system-ui, sans-serif;
+  --font-brand: 'Playfair Display', Georgia, serif;
+
+  --color-ground: #202b2d;
+  --color-ground-deep: #1a2325;
+  --color-surface: #2a373a;
+  --color-raised: #324245;
+  --color-line: #425559;
+  --color-line-strong: #5a7075;
+
+  --color-ink: #ecf0ea;
+  --color-ink-soft: #c0ccc5;
+  --color-ink-faint: #93a39d;
+
+  --color-nasa: #1f56b8;
+  --color-nasa-hover: #2a66cf;
+  --color-nasa-light: #9dbcf2;
+  --color-signal: #fc3d21;
+
+  --color-wheat: #e3b55b;
+  --color-sage: #9cc58a;
+  --color-clay: #c9805a;
+  --color-water: #6fa8d6;
+
+  /* Cropfather editorial light theme tokens */
+  --color-cf-bg: #F7F5EE;
+  --color-cf-hero: #DCE6D8;
+  --color-cf-primary: #315544;
+  --color-cf-primary-hover: #264336;
+  --color-cf-panel: #FAF9F5;
+  --color-cf-text: #1B2921;
+  --color-cf-muted: #556158;
+  --color-cf-border: rgba(27, 41, 33, 0.12);
+  --color-cf-border-strong: rgba(27, 41, 33, 0.24);
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    background-color: var(--color-ground);
+    color: var(--color-ink);
+    min-height: 100vh;
+    font-family: var(--font-sans);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* ---------- Cards ---------- */
+.agri-card {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-line);
+  transition: border-color 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.agri-card:hover {
+  border-color: #6f9a76;
+  transform: translateY(-2px);
+  box-shadow: 0 14px 28px -14px rgba(10, 16, 18, 0.6), 0 0 0 1px rgba(111, 154, 118, 0.18);
+}
+
+.agri-card.agri-card-static:hover {
+  transform: none;
+  box-shadow: none;
+  border-color: var(--color-line);
+}
+
+/* ---------- Buttons ---------- */
+.agri-button-primary {
+  background-color: var(--color-nasa);
+  color: #ffffff;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid rgba(157, 188, 242, 0.25);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 6px rgba(8, 14, 30, 0.3);
+}
+
+.agri-button-primary:hover {
+  background-color: var(--color-nasa-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(31, 86, 184, 0.35);
+}
+
+.agri-button-primary:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.agri-button-primary:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  transform: none;
+  box-shadow: none;
+}
+
+.guest-btn {
+  cursor: pointer;
+}
+
+/* ---------- Colour helpers (kept for existing pages) ---------- */
+.text-harvest-amber {
+  color: var(--color-wheat);
+}
+
+.border-harvest-amber {
+  border-color: #b8893a;
+}
+
+/* ---------- Field map ---------- */
+.field-parcel {
+  transition: filter 0.25s ease;
+}
+
+.field-parcel:hover {
+  filter: brightness(1.14);
+}
+
+/* ---------- Accessibility ---------- */
+:where(a, button, input, select, textarea):focus-visible {
+  outline: 2px solid var(--color-nasa-light);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .agri-card:hover,
+  .agri-button-primary:hover {
+    transform: none;
+  }
+}
+
+/* ---------- Card modifiers (added for app pages) ---------- */
+.agri-card.agri-card-notice,
+.agri-card.agri-card-static.agri-card-notice:hover {
+  border-color: rgba(227, 181, 91, 0.35);
+}
+
+.agri-card.agri-card-danger,
+.agri-card.agri-card-static.agri-card-danger:hover {
+  border-color: rgba(252, 165, 165, 0.3);
+}
+
+/* ---------- Field map (added for the map module) ---------- */
+.fs-map-panel {
+  background-color: rgba(250, 249, 245, 0.55);
+  background-image: linear-gradient(
+    125deg,
+    rgba(255, 255, 255, 0.78) 0%,
+    rgba(250, 249, 245, 0.4) 42%,
+    rgba(250, 249, 245, 0.22) 100%
+  );
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  box-shadow:
+    0 12px 28px -12px rgba(20, 32, 25, 0.4),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.95),
+    inset 0 -10px 14px -12px rgba(27, 41, 33, 0.22);
+  color: #1B2921;
+  backdrop-filter: blur(18px) saturate(170%);
+  -webkit-backdrop-filter: blur(18px) saturate(170%);
+}
+
+.fs-map-chip {
+  background-color: rgba(250, 249, 245, 0.48);
+  background-image: linear-gradient(
+    155deg,
+    rgba(255, 255, 255, 0.8) 0%,
+    rgba(250, 249, 245, 0.34) 48%,
+    rgba(220, 230, 216, 0.28) 100%
+  );
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow:
+    0 8px 18px -8px rgba(20, 32, 25, 0.38),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.95);
+  color: #1B2921;
+  backdrop-filter: blur(16px) saturate(165%);
+  -webkit-backdrop-filter: blur(16px) saturate(165%);
+  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.fs-map-chip:hover {
+  color: #1B2921;
+  background-color: rgba(220, 230, 216, 0.62);
+  background-image: linear-gradient(155deg, rgba(255, 255, 255, 0.78) 0%, rgba(220, 230, 216, 0.42) 100%);
+  border-color: rgba(255, 255, 255, 0.9);
+}
+
+/* Selected map toggles keep a sage frost. The inner button carries a full inset
+   border in the same colour as the map mark, so the two stay distinct. */
+.fs-map-panel.is-on-cadastre,
+.fs-map-panel.is-on-wells {
+  background-color: rgba(220, 230, 216, 0.62);
+  background-image: linear-gradient(145deg, rgba(255, 255, 255, 0.66) 0%, rgba(220, 230, 216, 0.34) 100%);
+  border-color: rgba(255, 255, 255, 0.82);
+  box-shadow:
+    0 12px 28px -12px rgba(20, 32, 25, 0.34),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.95);
+}
+
+/* Round frosted control, used for the hero carousel arrows. */
+.cf-glass-orb {
+  background-color: rgba(250, 249, 245, 0.42);
+  background-image: linear-gradient(145deg, rgba(255, 255, 255, 0.78) 0%, rgba(250, 249, 245, 0.28) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow:
+    0 8px 18px -6px rgba(20, 32, 25, 0.4),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.95),
+    inset 0 -6px 10px -8px rgba(27, 41, 33, 0.22);
+  color: #1B2921;
+  backdrop-filter: blur(16px) saturate(165%);
+  -webkit-backdrop-filter: blur(16px) saturate(165%);
+}
+
+.fs-map-panel.is-on-cadastre > button {
+  box-shadow: inset 0 0 0 2px #7fd3f7;
+}
+
+.fs-map-panel.is-on-wells > button {
+  box-shadow: inset 0 0 0 2px #5ad17f;
+}
+
+.fs-hatch {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(27, 41, 33, 0.45) 0 2px,
+    rgba(27, 41, 33, 0.08) 2px 6px
+  );
+}
+
+.cf-map-page :where(a, button, input, select, textarea):focus-visible {
+  outline: 2px solid var(--color-cf-primary);
+  outline-offset: 2px;
+}
+
+/* Map sidebar: the same sage wash as the dashboard, so cream cards and buttons stay visible. */
+.cf-map-aside {
+  background-color: var(--color-cf-bg);
+  background-image:
+    radial-gradient(ellipse 90% 40% at 0% 0%, rgba(220, 230, 216, 0.95), transparent 70%),
+    radial-gradient(ellipse 70% 50% at 100% 100%, rgba(220, 230, 216, 0.55), transparent 65%);
+}
+
+.cf-map-aside .border-cf-border {
+  border-color: rgba(49, 85, 68, 0.22);
+}
+
+.fs-toast {
+  animation: fs-toast-in 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes fs-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* MapLibre controls in the app's colours */
+.fs-map .maplibregl-ctrl-group {
+  background-color: #FAF9F5;
+  background-color: rgba(250, 249, 245, 0.88);
+  border: 1px solid rgba(27, 41, 33, 0.14);
+  border-radius: 0.75rem;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  overflow: hidden;
+}
+
+.fs-map .maplibregl-ctrl-group button {
+  width: 36px;
+  height: 36px;
+}
+
+.fs-map .maplibregl-ctrl-group button + button {
+  border-top: 1px solid rgba(27, 41, 33, 0.12);
+}
+
+.fs-map .maplibregl-ctrl-group button:not(:disabled):hover {
+  background-color: #DCE6D8;
+}
+
+.fs-map .maplibregl-ctrl-group button .maplibregl-ctrl-icon {
+  filter: none;
+}
+
+.fs-map .maplibregl-ctrl-scale {
+  background-color: rgba(250, 249, 245, 0.88);
+  border-color: rgba(27, 41, 33, 0.35);
+  color: #1B2921;
+}
+
+.fs-map .maplibregl-ctrl.maplibregl-ctrl-attrib,
+.fs-map .maplibregl-ctrl.maplibregl-ctrl-attrib.maplibregl-compact-show {
+  background-color: rgba(250, 249, 245, 0.88);
+  color: #556158;
+  font-size: 11px;
+}
+
+.fs-map .maplibregl-ctrl.maplibregl-ctrl-attrib a {
+  color: #1B2921;
+}
+
+.fs-map .maplibregl-ctrl-attrib .maplibregl-ctrl-attrib-button {
+  background-color: transparent;
+  filter: none;
+}
+
+.fs-map .fs-popup .maplibregl-popup-content {
+  background-color: #FAF9F5;
+  border: 1px solid rgba(27, 41, 33, 0.14);
+  border-radius: 0.75rem;
+  color: #556158;
+  padding: 10px 12px;
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.fs-map .fs-popup .maplibregl-popup-content strong {
+  color: #1B2921;
+  display: block;
+  margin-bottom: 2px;
+}
+
+.fs-map .fs-popup .maplibregl-popup-tip {
+  display: none;
+}
+
+/* Region chips: sideways scrolling on phones without a visible scrollbar */
+.fs-chip-row {
+  scrollbar-width: none;
+}
+
+.fs-chip-row::-webkit-scrollbar {
+  display: none;
+}
+
+/* ------------------------------------------------------------------
+   Cropfather Home Page Theme & Frosted Liquid Glass (Glassmorphism)
+   ------------------------------------------------------------------ */
+.cf-home {
+  background-color: var(--color-cf-bg);
+  background-image:
+    radial-gradient(ellipse 80% 50% at 15% 0%, rgba(220, 230, 216, 0.85), transparent 60%),
+    radial-gradient(ellipse 65% 45% at 85% 25%, rgba(156, 197, 138, 0.25), transparent 55%),
+    radial-gradient(ellipse 70% 55% at 50% 95%, rgba(220, 230, 216, 0.55), transparent 65%);
+  color: var(--color-cf-text);
+  font-family: var(--font-sans);
+  font-weight: 400;
+  color-scheme: light;
+}
+
+.cf-home :where(h1, h2, h3, h4) {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  color: var(--color-cf-text);
+}
+
+.cf-home :where(a, button, input, select, textarea):focus-visible {
+  outline: 2px solid var(--color-cf-primary);
+  outline-offset: 2px;
+}
+
+/* Liquid Glass surface for navigation bar */
+.cf-glass {
+  background-color: #FAF9F5;
+  background-color: rgba(250, 249, 245, 0.72);
+  backdrop-filter: blur(22px) saturate(160%);
+  -webkit-backdrop-filter: blur(22px) saturate(160%);
+  border-color: rgba(255, 255, 255, 0.65);
+  box-shadow: 0 4px 24px -6px rgba(27, 41, 33, 0.06);
+  color: #1B2921;
+}
+
+/* Site header. More opaque than a panel so the cream stays the same over a dark page. */
+.cf-header {
+  background-color: rgba(247, 245, 238, 0.96);
+}
+
+/* Frosted Liquid Glass Box / Panel */
+.cf-glass-box {
+  background: linear-gradient(
+    135deg,
+    rgba(250, 249, 245, 0.76) 0%,
+    rgba(250, 249, 245, 0.54) 100%
+  );
+  backdrop-filter: blur(24px) saturate(170%);
+  -webkit-backdrop-filter: blur(24px) saturate(170%);
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  box-shadow:
+    0 12px 32px -8px rgba(27, 41, 33, 0.08),
+    0 2px 6px 0 rgba(27, 41, 33, 0.04),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.9);
+  color: var(--color-cf-text);
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+}
+
+.cf-glass-box:hover {
+  border-color: rgba(255, 255, 255, 0.95);
+  box-shadow:
+    0 16px 38px -10px rgba(27, 41, 33, 0.11),
+    0 4px 10px 0 rgba(27, 41, 33, 0.05),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.95);
+}
+
+/* Floating glass HUD overlays inside the interactive field preview */
+.cf-glass-hud {
+  background: linear-gradient(
+    135deg,
+    rgba(250, 249, 245, 0.88) 0%,
+    rgba(250, 249, 245, 0.74) 100%
+  );
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.82);
+  box-shadow:
+    0 8px 20px -4px rgba(20, 32, 25, 0.18),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.9);
+  color: #1B2921;
+}
+
+/* Showcase / decorative glass pill buttons on the hero */
+.cf-glass-pill {
+  background: linear-gradient(
+    135deg,
+    rgba(250, 249, 245, 0.72) 0%,
+    rgba(250, 249, 245, 0.48) 100%
+  );
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  box-shadow:
+    0 4px 14px -3px rgba(27, 41, 33, 0.07),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.85);
+  color: #1B2921;
+  font-family: var(--font-sans);
+  font-weight: 500;
+  transition: background 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+}
+
+.cf-glass-pill:hover {
+  background: linear-gradient(
+    135deg,
+    rgba(250, 249, 245, 0.88) 0%,
+    rgba(250, 249, 245, 0.68) 100%
+  );
+  border-color: rgba(255, 255, 255, 0.95);
+  transform: translateY(-1px);
+}
+
+/* Primary frosted liquid glass button (#315544 tint with glass specular highlights) */
+.cf-btn-primary {
+  background: linear-gradient(
+    135deg,
+    rgba(49, 85, 68, 0.92) 0%,
+    rgba(38, 67, 54, 0.86) 100%
+  );
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  color: var(--color-cf-panel);
+  font-family: var(--font-sans);
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  box-shadow:
+    0 8px 20px -4px rgba(49, 85, 68, 0.32),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.35);
+  transition: all 0.2s ease;
+}
+
+.cf-btn-primary:hover:not(:disabled) {
+  background: linear-gradient(
+    135deg,
+    rgba(42, 75, 59, 0.96) 0%,
+    rgba(30, 54, 43, 0.92) 100%
+  );
+  border-color: rgba(255, 255, 255, 0.42);
+  box-shadow:
+    0 10px 24px -4px rgba(49, 85, 68, 0.4),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.45);
+  transform: translateY(-1px);
+}
+
+.cf-btn-primary:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.cf-btn-primary:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Secondary / Guest frosted liquid glass button */
+.cf-btn-secondary {
+  background: linear-gradient(
+    135deg,
+    rgba(250, 249, 245, 0.78) 0%,
+    rgba(250, 249, 245, 0.56) 100%
+  );
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  color: var(--color-cf-text);
+  font-family: var(--font-sans);
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow:
+    0 6px 18px -4px rgba(27, 41, 33, 0.08),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.92);
+  transition: all 0.2s ease;
+}
+
+.cf-btn-secondary:hover:not(:disabled) {
+  background: linear-gradient(
+    135deg,
+    rgba(250, 249, 245, 0.92) 0%,
+    rgba(250, 249, 245, 0.74) 100%
+  );
+  border-color: rgba(49, 85, 68, 0.35);
+  box-shadow:
+    0 8px 22px -4px rgba(27, 41, 33, 0.12),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.98);
+  transform: translateY(-1px);
+}
+
+.cf-btn-secondary:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+/* Sage secondary, same frost as .cf-btn-secondary so it stays visible on a cream card. */
+.cf-btn-glass-sage {
+  background: linear-gradient(
+    135deg,
+    rgba(220, 230, 216, 0.84) 0%,
+    rgba(220, 230, 216, 0.58) 100%
+  );
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  color: #1B2921;
+  font-family: var(--font-sans);
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.88);
+  box-shadow:
+    0 6px 18px -4px rgba(49, 85, 68, 0.16),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.95);
+  transition: all 0.2s ease;
+}
+
+.cf-btn-glass-sage:hover:not(:disabled) {
+  background: linear-gradient(
+    135deg,
+    rgba(220, 230, 216, 0.96) 0%,
+    rgba(200, 214, 194, 0.78) 100%
+  );
+  border-color: rgba(49, 85, 68, 0.35);
+  box-shadow:
+    0 8px 22px -4px rgba(49, 85, 68, 0.22),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.98);
+  transform: translateY(-1px);
+}
+
+.cf-btn-glass-sage:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+/* Danger, same frost, red tint kept. */
+.cf-btn-glass-danger {
+  background: linear-gradient(
+    135deg,
+    rgba(254, 226, 226, 0.84) 0%,
+    rgba(254, 202, 202, 0.55) 100%
+  );
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  color: #991b1b;
+  font-family: var(--font-sans);
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid rgba(185, 28, 28, 0.32);
+  box-shadow:
+    0 6px 18px -4px rgba(153, 27, 27, 0.12),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.9);
+  transition: all 0.2s ease;
+}
+
+.cf-btn-glass-danger:hover:not(:disabled) {
+  background: linear-gradient(
+    135deg,
+    rgba(254, 226, 226, 0.96) 0%,
+    rgba(252, 165, 165, 0.7) 100%
+  );
+  border-color: rgba(185, 28, 28, 0.5);
+  transform: translateY(-1px);
+}
+
+.cf-btn-glass-danger:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+/* Sage-tinted glass card, for a notice that should stay soft green and still frost. */
+.cf-glass-sage {
+  background: linear-gradient(
+    135deg,
+    rgba(220, 230, 216, 0.78) 0%,
+    rgba(220, 230, 216, 0.5) 100%
+  );
+  backdrop-filter: blur(24px) saturate(170%);
+  -webkit-backdrop-filter: blur(24px) saturate(170%);
+  border: 1px solid rgba(255, 255, 255, 0.82);
+  box-shadow:
+    0 12px 32px -8px rgba(49, 85, 68, 0.1),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.92);
+  color: #1B2921;
+}
+
+/* Reflective glass parcel map on Home with bevel and emboss */
+.cf-glass-map {
+  position: relative;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  border-bottom-color: rgba(27, 41, 33, 0.25);
+  border-right-color: rgba(27, 41, 33, 0.2);
+  box-shadow:
+    0 24px 48px -12px rgba(20, 32, 25, 0.28),
+    0 6px 16px -4px rgba(20, 32, 25, 0.16),
+    inset 0 2px 3px 0 rgba(255, 255, 255, 0.95),
+    inset 2px 0 3px 0 rgba(255, 255, 255, 0.75),
+    inset 0 -3px 6px 0 rgba(16, 26, 21, 0.35),
+    inset -2px 0 4px 0 rgba(16, 26, 21, 0.25);
+}
+
+.cf-glass-map::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.55),
+    inset 0 3px 6px rgba(255, 255, 255, 0.65),
+    inset 0 -3px 6px rgba(15, 25, 20, 0.35);
+}
+
+.cf-brand-title {
+  font-family: var(--font-brand);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+/* Dashboard full-bleed light background wrapper inside AppLayout */
+.cf-dashboard {
+  background-color: var(--color-cf-bg);
+  background-image:
+    radial-gradient(ellipse 80% 50% at 15% 0%, rgba(220, 230, 216, 0.85), transparent 60%),
+    radial-gradient(ellipse 65% 45% at 85% 25%, rgba(156, 197, 138, 0.25), transparent 55%),
+    radial-gradient(ellipse 70% 55% at 50% 95%, rgba(220, 230, 216, 0.55), transparent 65%);
+  color: var(--color-cf-text);
+  font-family: var(--font-sans);
+  font-weight: 400;
+  color-scheme: light;
+}
+
+.cf-dashboard :where(h1, h2, h3, h4) {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  color: var(--color-cf-text);
+}
+
+.cf-dashboard :where(a, button, input, select, textarea):focus-visible {
+  outline: 2px solid var(--color-cf-primary);
+  outline-offset: 2px;
+}
+
+/* LanguageToggle frosted glass adaptation on the home, dashboard, and glass surfaces */
+:where(.cf-home, .cf-glass, .cf-dashboard) [role="group"] {
+  background: rgba(250, 249, 245, 0.65);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-color: rgba(255, 255, 255, 0.8);
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.85);
+}
+
+:where(.cf-home, .cf-glass, .cf-dashboard) [role="group"] button {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  box-shadow: none;
+}
+
+:where(.cf-home, .cf-glass, .cf-dashboard) [role="group"] button[aria-pressed="true"] {
+  background-color: rgba(220, 230, 216, 0.85);
+  color: var(--color-cf-text);
+  font-weight: 600;
+}
+
+:where(.cf-home, .cf-glass, .cf-dashboard) [role="group"] button[aria-pressed="false"] {
+  color: var(--color-cf-muted);
+}
+
+:where(.cf-home, .cf-glass, .cf-dashboard) [role="group"] button[aria-pressed="false"]:hover {
+  color: var(--color-cf-text);
+}
