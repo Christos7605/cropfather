@@ -11,9 +11,14 @@ Reads SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY from the environment, then
 from backend/.env, then from the repo .env. The anon key cannot write the
 checker's answer.
 
-    python backend/worker/ndvi_worker.py
+    python backend/worker/ndvi_worker.py          # localhost: via=local only, with a heartbeat
+    python backend/worker/ndvi_worker.py --once   # one GitHub row: RUN_ID, then exit
+
+--once does not write the heartbeat. A second run that finds the row already
+taken exits without running the checker again.
 """
 
+import argparse
 import json
 import os
 import subprocess
@@ -222,16 +227,47 @@ def main():
             time.sleep(POLL_SECONDS)
 
     threading.Thread(target=heartbeat, name="ndvi-heartbeat", daemon=True).start()
-    print("Watching prediction_runs.", flush=True)
-    while True:
+def run_row(rest, row):
+    try:
+        handle(rest, row)
+    except Exception as err:
+        print(f"run failed: {err}", flush=True)
         try:
-            row = claim(rest)
-        except Exception as err:
-            print(f"claim failed: {err}", flush=True)
-            time.sleep(POLL_SECONDS)
-            continue
-        if row is None:
-            time.sleep(POLL_SECONDS)
+            finish(rest, row["id"], {**outcome(1, None), "error": str(err)[:200]})
+        except Exception as second:
+            print(f"could not store the failure: {second}", flush=True)
+            raise SystemExit(1) from None
+
+
+def once(rest):
+    run_id = os.environ.get("RUN_ID", "").strip()
+    if not run_id:
+        raise SystemExit("Set RUN_ID to the prediction_runs id.")
+    row = claim_github(rest, run_id)
+    if row is None:
+        print(f"ndvi {run_id} already taken", flush=True)
+        return
+    run_row(rest, row)
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Run the NDVI check for prediction_runs.")
+    parser.add_argument("--once", action="store_true", help="Check only RUN_ID, then exit. Does not write a heartbeat.")
+    args = parser.parse_args()
+
+    load_env_file(BACKEND / ".env")
+    load_env_file(BACKEND.parent / ".env")
+    url = os.environ.get("SUPABASE_URL", "").strip()
+    key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+    if not url or not key:
+        raise SystemExit("Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in the environment or backend/.env.")
+    if not CHECKER.is_file():
+        raise SystemExit(f"NDVI checker not found at {CHECKER}.")
+    rest = Rest(url, key)
+
+    if args.once:
+        once(rest)
+        return
             continue
         try:
             handle(rest, row)

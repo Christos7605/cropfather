@@ -37,19 +37,27 @@ export type PredictionStatus =
   | 'predict'
   | 'done';
 
+/** local: the terminal worker. github: one Actions run, started by dispatch-ndvi. */
+export type PredictionVia = 'local' | 'github';
+
+/** A GitHub check still waiting after this is cancelled. The queue and install take longer than the heartbeat. */
+export const GITHUB_NDVI_WAIT_MS = 25 * 60 * 1000;
+
 export interface PredictionRun {
   id: string;
   status: PredictionStatus;
+  via: PredictionVia;
   vegetated: boolean | null;
   observed_on: string | null;
   error: string | null;
+  created_at: string;
 }
 
-/** Open a request. The NDVI worker claims rows in status ndvi. */
-export async function startPredictionRun(fieldId: string): Promise<string> {
+/** Open a request. The terminal worker claims via=local. GitHub claims the one via=github row it was given. */
+export async function startPredictionRun(fieldId: string, via: PredictionVia): Promise<string> {
   const { data, error } = await supabase
     .from('prediction_runs')
-    .insert({ field_id: fieldId, status: 'ndvi' })
+    .insert({ field_id: fieldId, status: 'ndvi', via })
     .select('id')
     .single();
   if (error) throw new Error(error.message);
@@ -59,11 +67,23 @@ export async function startPredictionRun(fieldId: string): Promise<string> {
 export async function loadPredictionRun(runId: string): Promise<PredictionRun | null> {
   const { data, error } = await supabase
     .from('prediction_runs')
-    .select('id, status, vegetated, observed_on, error')
+    .select('id, status, via, vegetated, observed_on, error, created_at')
     .eq('id', runId)
     .maybeSingle();
   if (error) throw new Error(error.message);
   return (data as PredictionRun | null) ?? null;
+}
+
+/** Ask the Edge Function to start one GitHub Actions run for this row. */
+export async function dispatchNdvi(runId: string): Promise<void> {
+  const { error } = await supabase.functions.invoke('dispatch-ndvi', { body: { run_id: runId } });
+  if (error) throw new Error(error.message);
+}
+
+export function githubWaitExpired(createdAt: string, now = Date.now()): boolean {
+  const started = Date.parse(createdAt);
+  if (Number.isNaN(started)) return false;
+  return now - started >= GITHUB_NDVI_WAIT_MS;
 }
 
 /** True when the NDVI worker has written a heartbeat in the last 20 seconds. */

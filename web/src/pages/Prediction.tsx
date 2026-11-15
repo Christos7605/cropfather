@@ -9,6 +9,7 @@ import { isFarmQuestionnaireComplete, loadFarmResponse } from '../lib/questionna
 import {
   choosePrediction,
   clearRunningPrediction,
+  dispatchNdvi,
   loadPredictionRun,
   loadRunningPrediction,
   predictionWorkerLive,
@@ -44,7 +45,7 @@ export const Prediction: React.FC = () => {
         let stopped = false;
         if (stillThere && !live) {
           const row = await loadPredictionRun(stillThere.runId);
-          if (!cancelled && row && (row.status === 'ndvi' || row.status === 'running')) {
+          if (!cancelled && row && row.via !== 'github' && (row.status === 'ndvi' || row.status === 'running')) {
             await choosePrediction(stillThere.runId, 'cancel').catch(() => undefined);
             clearRunningPrediction(userId);
             stillThere = null;
@@ -79,13 +80,19 @@ export const Prediction: React.FC = () => {
     setError(null);
     setWorkerDown(false);
     try {
-      if (!(await predictionWorkerLive())) {
-        setWorkerDown(true);
-        setStartingId(null);
-        return;
-      }
+      const live = await predictionWorkerLive();
       await recordPredictionRequest(field.id);
-      const runId = await startPredictionRun(field.id);
+      const runId = await startPredictionRun(field.id, live ? 'local' : 'github');
+      if (!live) {
+        try {
+          await dispatchNdvi(runId);
+        } catch {
+          await choosePrediction(runId, 'cancel').catch(() => undefined);
+          setWorkerDown(true);
+          setStartingId(null);
+          return;
+        }
+      }
       saveRunningPrediction(userId, field.id, runId);
       navigate(`/prediction/fields/${field.id}`);
     } catch (err: unknown) {

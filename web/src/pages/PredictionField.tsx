@@ -9,6 +9,7 @@ import { isFarmQuestionnaireComplete, loadFarmResponse } from '../lib/questionna
 import {
   choosePrediction,
   clearRunningPrediction,
+  githubWaitExpired,
   loadPredictionRun,
   loadRunningPrediction,
   PREDICTION_KINDS,
@@ -137,7 +138,14 @@ const PredictionRun: React.FC<{ userId: string; runId: string; name: string }> =
       Promise.all([loadPredictionRun(runId), predictionWorkerLive()])
         .then(([row, live]) => {
           if (cancelled || !row) return;
-          if ((row.status === 'ndvi' || row.status === 'running') && !live) {
+          const waiting = row.status === 'ndvi' || row.status === 'running';
+          if (waiting && row.via !== 'github' && !live) {
+            void choosePrediction(runId, 'cancel').catch(() => undefined);
+            clearRunningPrediction(userId);
+            setPhase('down');
+            return;
+          }
+          if (waiting && row.via === 'github' && githubWaitExpired(row.created_at)) {
             void choosePrediction(runId, 'cancel').catch(() => undefined);
             clearRunningPrediction(userId);
             setPhase('down');
