@@ -7,7 +7,9 @@ import { listMyFields, type FieldRecord } from '../lib/fields';
 import { surveyProgress } from '../lib/fieldStatus';
 import { isFarmQuestionnaireComplete, loadFarmResponse } from '../lib/questionnaire';
 import {
+  choosePrediction,
   clearRunningPrediction,
+  loadPredictionRun,
   loadRunningPrediction,
   PREDICTION_KINDS,
   PREDICTION_TIMINGS,
@@ -15,9 +17,9 @@ import {
 } from '../lib/prediction';
 
 type Gate = 'ready' | 'missing' | 'farm' | 'field' | 'other';
-type Phase = 'ndvi' | 'warn' | 'ndviAfter' | 'predict' | 'done';
+type Phase = 'ndvi' | 'warn' | 'failed' | 'predict' | 'done';
 
-// The result of a rotation request. The two waits stand in for the NDVI check and the model.
+// The result of a rotation request. NDVI follows the worker; the prediction wait is still a placeholder.
 export const PredictionField: React.FC = () => {
   const { fieldId = '' } = useParams();
   const { user } = useAuth();
@@ -26,6 +28,7 @@ export const PredictionField: React.FC = () => {
 
   const [field, setField] = useState<FieldRecord | null>(null);
   const [reason, setReason] = useState<Gate | null>(null);
+  const [runId, setRunId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!userId || !fieldId) return;
@@ -48,6 +51,7 @@ export const PredictionField: React.FC = () => {
           setReason('missing');
           return;
         }
+        setRunId(running.runId);
         if (!isFarmQuestionnaireComplete(farm)) {
           setReason('farm');
           return;
@@ -87,8 +91,8 @@ export const PredictionField: React.FC = () => {
           {t('prediction.back')}
         </Link>
 
-        {reason === 'ready' && userId ? (
-          <PredictionRun userId={userId} name={name} />
+        {reason === 'ready' && userId && runId ? (
+          <PredictionRun userId={userId} runId={runId} name={name} />
         ) : (
           <div className="cf-glass-box rounded-2xl p-6 sm:p-8 space-y-4">
             <div className="inline-flex p-3 rounded-xl bg-cf-hero text-cf-primary border border-white/70">
@@ -108,57 +112,107 @@ export const PredictionField: React.FC = () => {
   );
 };
 
-const PredictionRun: React.FC<{ userId: string; name: string }> = ({ userId, name }) => {
-  const { t } = useLanguage();
+function formatObserved(iso: string | null, locale: string): string {
+  if (!iso) return '';
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+  if (!match) return iso;
+  const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  return date.toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+const PredictionRun: React.FC<{ userId: string; runId: string; name: string }> = ({ userId, runId, name }) => {
+  const { t, locale } = useLanguage();
   const navigate = useNavigate();
   const [phase, setPhase] = useState<Phase>('ndvi');
+  const [observedOn, setObservedOn] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
+  const [choiceError, setChoiceError] = useState<string | null>(null);
+  const [choosing, setChoosing] = useState(false);
 
   useEffect(() => {
     if (phase !== 'ndvi') return;
-    const id = window.setTimeout(() => setPhase('warn'), PREDICTION_TIMINGS.ndviMs);
-    return () => window.clearTimeout(id);
-  }, [phase]);
-
-  useEffect(() => {
-    if (phase !== 'ndviAfter') return;
-    const id = window.setTimeout(() => setPhase('predict'), PREDICTION_TIMINGS.ndviAfterOverrideMs);
-    return () => window.clearTimeout(id);
-  }, [phase]);
+    let cancelled = false;
+    const tick = () => {
+      loadPredictionRun(runId)
+        .then((row) => {
+          if (cancelled || !row) return;
+          if (row.status === 'needs_override') {
+            setObservedOn(row.observed_on);
+            setPhase('warn');
+          } else if (row.status === 'failed') {
+            setPhase('failed');
+          } else if (row.status === 'predict') {
+            setPhase('predict');
+          } else if (row.status === 'done') {
+            clearRunningPrediction(userId);
+            setPhase('done');
+          }
+        })
+        .catch(() => {
+          // The next poll tries again. The NDVI label stays up until the row changes.
+        });
+    };
+    tick();
+    const id = window.setInterval(tick, 1000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [phase, runId, userId]);
 
   useEffect(() => {
     if (phase !== 'predict') return;
-    const id = window.setTimeout(() => {
-      clearRunningPrediction(userId);
-      setPhase('done');
-    }, PREDICTION_TIMINGS.predictionMs);
-    return () => window.clearTimeout(id);
-  }, [phase, userId]);
-
-  useEffect(() => {
-    if (phase === 'warn' || phase === 'done') return;
-    const duration =
-      phase === 'ndvi'
-        ? PREDICTION_TIMINGS.ndviMs
-        : phase === 'ndviAfter'
-          ? PREDICTION_TIMINGS.ndviAfterOverrideMs
-          : PREDICTION_TIMINGS.predictionMs;
     const start = performance.now();
     setProgress(0);
-    const id = window.setInterval(() => {
-      setProgress(Math.min(1, (performance.now() - start) / duration));
+    const bar = window.setInterval(() => {
+      setProgress(Math.min(1, (performance.now() - start) / PREDICTION_TIMINGS.predictionMs));
     }, 80);
-    return () => window.clearInterval(id);
-  }, [phase]);
+    const done = window.setTimeout(() => {
+      void choosePrediction(runId, 'finish')
+        .catch(() => undefined)
+        .finally(() => {
+          clearRunningPrediction(userId);
+          setPhase('done');
+        });
+    }, PREDICTION_TIMINGS.predictionMs);
+    return () => {
+      window.clearInterval(bar);
+      window.clearTimeout(done);
+    };
+  }, [phase, runId, userId]);
 
-  const cancel = () => {
+  const cancel = async () => {
+    setChoosing(true);
+    setChoiceError(null);
+    try {
+      await choosePrediction(runId, 'cancel');
+    } catch (err: unknown) {
+      setChoiceError(err instanceof Error ? err.message : String(err));
+      setChoosing(false);
+      return;
+    }
     clearRunningPrediction(userId);
     navigate('/prediction');
+  };
+
+  const override = async () => {
+    setChoosing(true);
+    setChoiceError(null);
+    try {
+      await choosePrediction(runId, 'override');
+    } catch (err: unknown) {
+      setChoiceError(err instanceof Error ? err.message : String(err));
+      setChoosing(false);
+      return;
+    }
+    setChoosing(false);
+    setPhase('predict');
   };
 
   const ndviDone = phase === 'predict' || phase === 'done';
   const predictActive = phase === 'predict';
   const predictDone = phase === 'done';
+  const waitingOnFarmer = phase === 'warn' || phase === 'failed';
   const phaseLabel = ndviDone ? t('prediction.predictPhase') : t('prediction.ndviPhase');
 
   return (
@@ -173,12 +227,12 @@ const PredictionRun: React.FC<{ userId: string; name: string }> = ({ userId, nam
       </div>
 
       {phase !== 'done' && (
-        <section className="cf-glass-box rounded-2xl p-6 sm:p-8 space-y-5" aria-busy={phase !== 'warn'}>
+        <section className="cf-glass-box rounded-2xl p-6 sm:p-8 space-y-5" aria-busy={phase === 'ndvi' || phase === 'predict'}>
           <ol className="space-y-3">
             <PhaseRow
               label={t('prediction.ndviPhase')}
               state={ndviDone ? 'done' : 'active'}
-              spinning={phase === 'ndvi' || phase === 'ndviAfter'}
+              spinning={phase === 'ndvi'}
             />
             <PhaseRow
               label={t('prediction.predictPhase')}
@@ -187,7 +241,13 @@ const PredictionRun: React.FC<{ userId: string; name: string }> = ({ userId, nam
             />
           </ol>
 
-          {phase !== 'warn' && (
+          {phase === 'ndvi' && (
+            <div className="h-1.5 rounded-full bg-cf-hero overflow-hidden" role="progressbar" aria-valuetext={phaseLabel}>
+              <div className="cf-indeterminate h-full bg-cf-primary rounded-full" />
+            </div>
+          )}
+
+          {phase === 'predict' && (
             <div
               className="h-1.5 rounded-full bg-cf-hero overflow-hidden"
               role="progressbar"
@@ -204,31 +264,46 @@ const PredictionRun: React.FC<{ userId: string; name: string }> = ({ userId, nam
             {phaseLabel}
           </p>
 
-          {phase === 'warn' && (
+          {waitingOnFarmer && (
             <div className="cf-glass-sage rounded-2xl px-5 py-4 space-y-4">
               <div className="flex gap-3">
                 <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-cf-primary" aria-hidden="true" />
                 <div className="space-y-1">
-                  <p className="text-sm font-medium text-cf-text">{t('prediction.ndviWarningTitle')}</p>
-                  <p className="text-sm text-cf-text leading-relaxed">{t('prediction.ndviWarningBody')}</p>
-                  <p className="text-sm text-cf-muted leading-relaxed">{t('prediction.overrideHint')}</p>
+                  <p className="text-sm font-medium text-cf-text">
+                    {t(phase === 'failed' ? 'prediction.ndviFailedTitle' : 'prediction.ndviWarningTitle')}
+                  </p>
+                  <p className="text-sm text-cf-text leading-relaxed">
+                    {phase === 'failed'
+                      ? t('prediction.ndviFailedBody')
+                      : t('prediction.ndviWarningBody', { date: formatObserved(observedOn, locale) })}
+                  </p>
+                  {phase === 'warn' && <p className="text-sm text-cf-muted leading-relaxed">{t('prediction.overrideHint')}</p>}
                 </div>
               </div>
+              {choiceError && (
+                <p className="text-sm text-red-800" role="alert">
+                  {choiceError}
+                </p>
+              )}
               <div className="flex flex-col sm:flex-row gap-2.5">
                 <button
                   type="button"
-                  onClick={cancel}
-                  className="cf-btn-secondary px-4 py-2.5 rounded-xl text-sm"
+                  onClick={() => void cancel()}
+                  disabled={choosing}
+                  className="cf-btn-secondary px-4 py-2.5 rounded-xl text-sm disabled:opacity-60"
                 >
                   {t('prediction.cancelRun')}
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setPhase('ndviAfter')}
-                  className="cf-btn-primary px-4 py-2.5 rounded-xl text-sm"
-                >
-                  {t('prediction.override')}
-                </button>
+                {phase === 'warn' && (
+                  <button
+                    type="button"
+                    onClick={() => void override()}
+                    disabled={choosing}
+                    className="cf-btn-primary px-4 py-2.5 rounded-xl text-sm disabled:opacity-60"
+                  >
+                    {t('prediction.override')}
+                  </button>
+                )}
               </div>
             </div>
           )}

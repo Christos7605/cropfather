@@ -62,7 +62,9 @@ export const en = {
     predictPhase: 'Prediction',
     ndviWarningTitle: 'This field does not look empty',
     ndviWarningBody:
-      'The vegetation check found plants in the field. A prediction cannot be made for a field that is not empty.',
+      'As of {date}, this field has vegetation. A prediction cannot be made for a field that is not empty.',
+    ndviFailedTitle: 'The vegetation check could not be completed',
+    ndviFailedBody: 'No prediction was made. You can cancel and try again.',
     cancelRun: 'Cancel prediction',
     override: 'The field is empty',
     overrideHint: 'Continue only if you are sure nothing is growing there. The check can be wrong.',
@@ -85,8 +87,8 @@ export const en = {
   home: {
     statusLive: 'Live',
     statusDev: 'In development',
-    pilot: 'Pilot version for Costal Mediterrenean Farms',
-    title: 'Crops rotation tailored to you',
+    pilot: 'Pilot version for Coastal Mediterrenean Farms',
+    title: 'Crop rotations tailored to you',
     subtitle: 'Use our free model to find the optimal crop rotation using NASA satellite data, soil analytics, and climate projections; Designed with your profit in mind.',
     openDashboard: 'Open dashboard',
     ctaCreate: 'Create an account',

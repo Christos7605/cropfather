@@ -33,9 +33,16 @@ export const AppLayout: React.FC = () => {
   const sectionLabel = sectionKey ? t(sectionKey) : 'Field Shift';
 
   const onMap = location.pathname === '/map';
+  const onProfile = location.pathname === '/profile';
   const switchTo = onMap
     ? { path: '/dashboard', label: t('nav.dashboard'), Icon: LayoutDashboard }
     : { path: '/map', label: t('nav.map'), Icon: MapIcon };
+  const places = onProfile
+    ? [
+        { path: '/map', label: t('nav.map'), Icon: MapIcon },
+        { path: '/dashboard', label: t('nav.dashboard'), Icon: LayoutDashboard },
+      ]
+    : [switchTo];
 
   const handleSignOut = async () => {
     if (!confirmLeave()) return;
@@ -71,22 +78,27 @@ export const AppLayout: React.FC = () => {
           </Link>
 
           <div className="flex items-center gap-2.5 sm:gap-3.5">
-            <button
-              onClick={() => confirmLeave() && navigate(switchTo.path)}
-              className="cf-btn-secondary px-3.5 py-2 rounded-xl text-sm flex items-center gap-2 cursor-pointer"
-              aria-label={switchTo.label}
-            >
-              <switchTo.Icon className="w-4 h-4 text-cf-primary" />
-              <span className="text-cf-text font-medium hidden sm:inline">{switchTo.label}</span>
-            </button>
+            {places.map(({ path: to, label, Icon }) => (
+              <button
+                key={to}
+                onClick={() => confirmLeave() && navigate(to)}
+                className="cf-btn-secondary px-3.5 py-2 rounded-xl text-sm flex items-center gap-2 cursor-pointer"
+                aria-label={label}
+              >
+                <Icon className="w-4 h-4 text-cf-primary" />
+                <span className="text-cf-text font-medium hidden sm:inline">{label}</span>
+              </button>
+            ))}
 
-            <button
-              onClick={() => confirmLeave() && navigate('/profile')}
-              className="cf-btn-secondary px-3.5 py-2 rounded-xl text-sm flex items-center gap-2 cursor-pointer"
-            >
-              <UserIcon className="w-4 h-4 text-cf-primary" />
-              <span className="text-cf-text font-medium max-w-[140px] truncate">{displayName}</span>
-            </button>
+            {!onProfile && (
+              <button
+                onClick={() => confirmLeave() && navigate('/profile')}
+                className="cf-btn-secondary px-3.5 py-2 rounded-xl text-sm flex items-center gap-2 cursor-pointer"
+              >
+                <UserIcon className="w-4 h-4 text-cf-primary" />
+                <span className="text-cf-text font-medium max-w-[140px] truncate">{displayName}</span>
+              </button>
+            )}
 
             <LanguageToggle />
 

@@ -10,6 +10,7 @@ import {
   loadRunningPrediction,
   recordPredictionRequest,
   saveRunningPrediction,
+  startPredictionRun,
   type RunningPrediction,
 } from '../lib/prediction';
 
@@ -61,7 +62,8 @@ export const Prediction: React.FC = () => {
     setError(null);
     try {
       await recordPredictionRequest(field.id);
-      saveRunningPrediction(userId, field.id);
+      const runId = await startPredictionRun(field.id);
+      saveRunningPrediction(userId, field.id, runId);
       navigate(`/prediction/fields/${field.id}`);
     } catch (err: unknown) {
       setError(describeError(err, t));

@@ -1,6 +1,6 @@
 // One running request per account, remembered in this browser until it is cancelled
-// or the four results are shown. The timed steps stand in for the NDVI check and the
-// prediction model; see docs/prediction-pipeline.md for the calls that will replace them.
+// or the four results are shown. The NDVI phase follows prediction_runs; the 20 second
+// wait still stands in for the prediction model. See docs/prediction-pipeline.md.
 
 import { supabase } from './supabase';
 
@@ -23,13 +23,54 @@ export async function recordPredictionRequest(fieldId: string): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
-// Placeholder waits. The first NDVI wait always ends in the vegetation warning.
-// Confirming the field is empty continues that step, then the prediction step runs.
+// The prediction phase is still a placeholder. The NDVI phase waits for the worker.
 export const PREDICTION_TIMINGS = {
-  ndviMs: 5_000,
-  ndviAfterOverrideMs: 3_000,
   predictionMs: 20_000,
 } as const;
+
+export type PredictionStatus =
+  | 'ndvi'
+  | 'running'
+  | 'needs_override'
+  | 'failed'
+  | 'cancelled'
+  | 'predict'
+  | 'done';
+
+export interface PredictionRun {
+  id: string;
+  status: PredictionStatus;
+  vegetated: boolean | null;
+  observed_on: string | null;
+  error: string | null;
+}
+
+/** Open a request. The NDVI worker claims rows in status ndvi. */
+export async function startPredictionRun(fieldId: string): Promise<string> {
+  const { data, error } = await supabase
+    .from('prediction_runs')
+    .insert({ field_id: fieldId, status: 'ndvi' })
+    .select('id')
+    .single();
+  if (error) throw new Error(error.message);
+  return data.id as string;
+}
+
+export async function loadPredictionRun(runId: string): Promise<PredictionRun | null> {
+  const { data, error } = await supabase
+    .from('prediction_runs')
+    .select('id, status, vegetated, observed_on, error')
+    .eq('id', runId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return (data as PredictionRun | null) ?? null;
+}
+
+/** cancel, override, or finish. The database refuses any other move. */
+export async function choosePrediction(runId: string, choice: 'cancel' | 'override' | 'finish'): Promise<void> {
+  const { error } = await supabase.rpc('farmer_set_prediction', { p_run_id: runId, p_choice: choice });
+  if (error) throw new Error(error.message);
+}
 
 export const PREDICTION_KINDS = ['environment', 'financial', 'current', 'balanced'] as const;
 export type PredictionKind = (typeof PREDICTION_KINDS)[number];
@@ -37,6 +78,7 @@ export type PredictionKind = (typeof PREDICTION_KINDS)[number];
 export interface RunningPrediction {
   fieldId: string;
   startedAt: string;
+  runId: string;
 }
 
 export function loadRunningPrediction(userId: string): RunningPrediction | null {
@@ -45,14 +87,19 @@ export function loadRunningPrediction(userId: string): RunningPrediction | null 
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<RunningPrediction>;
     if (!parsed || typeof parsed.fieldId !== 'string' || !parsed.fieldId) return null;
-    return { fieldId: parsed.fieldId, startedAt: typeof parsed.startedAt === 'string' ? parsed.startedAt : '' };
+    if (typeof parsed.runId !== 'string' || !parsed.runId) return null;
+    return {
+      fieldId: parsed.fieldId,
+      runId: parsed.runId,
+      startedAt: typeof parsed.startedAt === 'string' ? parsed.startedAt : '',
+    };
   } catch {
     return null;
   }
 }
 
-export function saveRunningPrediction(userId: string, fieldId: string): RunningPrediction {
-  const running: RunningPrediction = { fieldId, startedAt: new Date().toISOString() };
+export function saveRunningPrediction(userId: string, fieldId: string, runId: string): RunningPrediction {
+  const running: RunningPrediction = { fieldId, runId, startedAt: new Date().toISOString() };
   try {
     window.localStorage.setItem(keyFor(userId), JSON.stringify(running));
   } catch {
