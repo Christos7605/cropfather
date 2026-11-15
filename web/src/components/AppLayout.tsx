@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { LanguageToggle } from './LanguageToggle';
 import { BrandMark, SITE_HEADER_CLASS } from './BrandMark';
+import { HeaderMenu, headerMenuItem } from './HeaderMenu';
 import { supabase } from '../lib/supabase';
 
 const SECTION_KEYS = {
@@ -63,21 +64,21 @@ export const AppLayout: React.FC = () => {
         <div className="w-full flex items-center justify-between">
           <Link
             to="/"
-            className="flex items-center gap-3 group cursor-pointer"
+            className="flex items-center gap-3 group cursor-pointer min-w-0"
             onClick={(e) => {
               if (!confirmLeave()) e.preventDefault();
             }}
           >
             <BrandMark />
-            <span className="leading-tight">
+            <span className="leading-tight min-w-0">
               <span className="cf-brand-title text-xl sm:text-2xl text-cf-text tracking-tight block">
                 Cropfather
               </span>
-              <span className="text-xs text-cf-muted font-medium">{sectionLabel}</span>
+              <span className="text-xs text-cf-muted font-medium block truncate">{sectionLabel}</span>
             </span>
           </Link>
 
-          <div className="flex items-center gap-2.5 sm:gap-3.5">
+          <div className="hidden md:flex items-center gap-2.5 sm:gap-3.5">
             {places.map(({ path: to, label, Icon }) => (
               <button
                 key={to}
@@ -111,6 +112,36 @@ export const AppLayout: React.FC = () => {
               <LogOut className="w-4 h-4" />
             </button>
           </div>
+
+          <HeaderMenu labelOpen={t('common.openMenu')} labelClose={t('common.closeMenu')} closeKey={location.pathname}>
+            {places.map(({ path: to, label, Icon }) => (
+              <button
+                key={to}
+                onClick={() => confirmLeave() && navigate(to)}
+                className={headerMenuItem}
+              >
+                <Icon className="w-4 h-4 text-cf-primary" />
+                <span className="text-cf-text font-medium">{label}</span>
+              </button>
+            ))}
+            {!onProfile && (
+              <button onClick={() => confirmLeave() && navigate('/profile')} className={headerMenuItem}>
+                <UserIcon className="w-4 h-4 text-cf-primary" />
+                <span className="text-cf-text font-medium truncate">{displayName}</span>
+              </button>
+            )}
+            <div className="flex items-center justify-between gap-3 px-1">
+              <span className="text-sm text-cf-muted">{t('common.language')}</span>
+              <LanguageToggle />
+            </div>
+            <button
+              onClick={handleSignOut}
+              className="w-full px-3.5 py-2.5 rounded-xl text-sm flex items-center gap-2 text-red-700 border border-red-200/80 bg-white/60 cursor-pointer"
+            >
+              <LogOut className="w-4 h-4" />
+              <span className="font-medium">{isAnonymous ? t('layout.exitGuest') : t('layout.signOut')}</span>
+            </button>
+          </HeaderMenu>
         </div>
       </header>
 

@@ -372,7 +372,11 @@ export const Dashboard: React.FC = () => {
                     {t('footer.presentation')}
                   </a>
                 </li>
-                <li><span className="hover:text-cf-text transition-colors cursor-default">{t('footer.cadastre')}</span></li>
+                <li>
+                  <a href="https://www.ktimatologio.gr/" className="hover:text-cf-text transition-colors">
+                    {t('footer.cadastre')}
+                  </a>
+                </li>
                 <li><span className="hover:text-cf-text transition-colors cursor-default">{t('footer.apiDocs')}</span></li>
               </ul>
             </div>

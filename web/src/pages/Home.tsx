@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { LanguageToggle } from '../components/LanguageToggle';
 import { BrandMark, SITE_HEADER_CLASS } from '../components/BrandMark';
+import { HeaderMenu, headerMenuItem } from '../components/HeaderMenu';
 import slide1 from '../assets/carousel/Carousel_image1.jpg';
 import slide2 from '../assets/carousel/Carousel_image2.jpg';
 import slide3 from '../assets/carousel/Carousel_image3.jpg';
@@ -121,14 +122,14 @@ export const Home: React.FC = () => {
     <div className="cf-home min-h-screen flex flex-col justify-between selection:bg-cf-hero selection:text-cf-text">
       <header className={SITE_HEADER_CLASS}>
         <div className="w-full flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-3 group cursor-pointer">
+          <Link to="/" className="flex items-center gap-3 group cursor-pointer min-w-0">
             <BrandMark />
             <span className="cf-brand-title text-xl sm:text-2xl text-cf-text tracking-tight">
               Cropfather
             </span>
           </Link>
 
-          <div className="flex items-center gap-2.5 sm:gap-3.5 text-sm font-medium">
+          <div className="hidden md:flex items-center gap-2.5 sm:gap-3.5 text-sm font-medium">
             <LanguageToggle />
             {loading ? null : user ? (
               <button
@@ -152,6 +153,28 @@ export const Home: React.FC = () => {
               </>
             )}
           </div>
+
+          <HeaderMenu labelOpen={t('common.openMenu')} labelClose={t('common.closeMenu')} closeKey={user ? 'in' : 'out'}>
+            <div className="flex items-center justify-between gap-3 px-1">
+              <span className="text-sm text-cf-muted">{t('common.language')}</span>
+              <LanguageToggle />
+            </div>
+            {loading ? null : user ? (
+              <button onClick={() => navigate('/dashboard')} className="cf-btn-primary w-full px-4 py-2.5 rounded-xl flex items-center justify-center gap-2">
+                <span>{t('home.openDashboard')}</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            ) : (
+              <>
+                <Link to="/login" className={headerMenuItem}>
+                  {t('common.signIn')}
+                </Link>
+                <Link to="/register" className="cf-btn-primary w-full px-4 py-2.5 rounded-xl text-center">
+                  {t('common.createAccount')}
+                </Link>
+              </>
+            )}
+          </HeaderMenu>
         </div>
       </header>
 
@@ -345,7 +368,11 @@ export const Home: React.FC = () => {
                     {t('footer.presentation')}
                   </a>
                 </li>
-                <li><span className="hover:text-cf-text transition-colors cursor-default">{t('footer.cadastre')}</span></li>
+                <li>
+                  <a href="https://www.ktimatologio.gr/" className="hover:text-cf-text transition-colors">
+                    {t('footer.cadastre')}
+                  </a>
+                </li>
                 <li><span className="hover:text-cf-text transition-colors cursor-default">{t('footer.apiDocs')}</span></li>
               </ul>
             </div>
