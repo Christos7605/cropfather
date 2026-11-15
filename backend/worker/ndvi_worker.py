@@ -117,7 +117,13 @@ def claim(rest):
     waiting = rest.request(
         "GET",
         "prediction_runs",
-        {"status": "eq.ndvi", "select": "id,field_id", "order": "created_at.asc", "limit": "1"},
+        {
+            "status": "eq.ndvi",
+            "via": "eq.local",
+            "select": "id,field_id",
+            "order": "created_at.asc",
+            "limit": "1",
+        },
     )
     if not waiting:
         return None
@@ -125,7 +131,21 @@ def claim(rest):
     claimed = rest.request(
         "PATCH",
         "prediction_runs",
-        {"id": "eq." + row["id"], "status": "eq.ndvi"},
+        {"id": "eq." + row["id"], "status": "eq.ndvi", "via": "eq.local"},
+        {"status": "running"},
+        representation=True,
+    )
+    if not claimed:
+        return None
+    return claimed[0]
+
+
+def claim_github(rest, run_id):
+    """Claim one dispatched row. None when it is already taken or is not a GitHub row."""
+    claimed = rest.request(
+        "PATCH",
+        "prediction_runs",
+        {"id": "eq." + run_id, "status": "eq.ndvi", "via": "eq.github"},
         {"status": "running"},
         representation=True,
     )
@@ -207,26 +227,6 @@ def handle(rest, row):
     print(f"  {patch['status']} vegetated={patch['vegetated']} date={patch['observed_on']}", flush=True)
 
 
-def main():
-    load_env_file(BACKEND / ".env")
-    load_env_file(BACKEND.parent / ".env")
-    url = os.environ.get("SUPABASE_URL", "").strip()
-    key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "").strip()
-    if not url or not key:
-        raise SystemExit("Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in the environment or backend/.env.")
-    if not CHECKER.is_file():
-        raise SystemExit(f"NDVI checker not found at {CHECKER}.")
-    rest = Rest(url, key)
-
-    def heartbeat():
-        while True:
-            try:
-                rest.beat()
-            except Exception as err:
-                print(f"heartbeat failed: {err}", flush=True)
-            time.sleep(POLL_SECONDS)
-
-    threading.Thread(target=heartbeat, name="ndvi-heartbeat", daemon=True).start()
 def run_row(rest, row):
     try:
         handle(rest, row)
