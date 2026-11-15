@@ -11,19 +11,45 @@
 --                              Writing stays with the service role, as before.
 --   current_subsidies (view)   recreated without the review_status column
 --
--- Run after 20261038_fifteen_crops.sql and BEFORE 20261040_crop_subsidies.sql and
--- 20261041_crop_economics.sql (it drops their views if they exist; those files create them
--- again). Do not re-run 20261031_policy_schema.sql after this file: its policies use
--- review_status. Runs in one transaction. Idempotent: safe to run more than once.
+-- Run after 20261038_fifteen_crops.sql and before 20261040_crop_subsidies.sql.
+-- The first run drops current_subsidies only while that view still has review_status,
+-- which is the shape from 20261031. A second run, including one after 20261042, leaves
+-- crop_subsidies, crop_economics and the policy functions in place and replaces
+-- current_subsidies where it stands. Do not re-run 20261031_policy_schema.sql after
+-- this file: its policies use review_status. Runs in one transaction.
 
 begin;
 
 -- ---------------------------------------------------------------------------
--- 1. Views that read review_status
+-- 1. The old current_subsidies still exposes review_status
 -- ---------------------------------------------------------------------------
-drop view if exists public.crop_economics;
-drop view if exists public.crop_subsidies;
-drop view if exists public.current_subsidies;
+-- Dependents are removed only in that case, so the column drop below can succeed.
+-- After this file has run once, the column is gone and this block does nothing.
+do $$
+begin
+  if exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'current_subsidies'
+      and column_name = 'review_status'
+  ) then
+    if exists (
+      select 1 from pg_class c
+      join pg_namespace n on n.oid = c.relnamespace
+      where n.nspname = 'public' and c.relname = 'crop_constraints' and c.relkind = 'v'
+    ) then
+      drop function if exists public.crop_constraint_json(public.crop_constraints);
+      drop view if exists public.crop_constraints;
+    end if;
+    drop function if exists public.crop_policy(text, text, text);
+    drop function if exists public.crop_comparison(text, text, jsonb);
+    drop function if exists public.crop_comparison(text, text);
+    drop view if exists public.crop_economics;
+    drop view if exists public.crop_subsidies;
+    drop view if exists public.current_subsidies;
+  end if;
+end $$;
 
 -- ---------------------------------------------------------------------------
 -- 2. RLS: every row readable
@@ -68,7 +94,7 @@ drop table if exists public.scheme_incompatibilities;
 -- ---------------------------------------------------------------------------
 -- 4. current_subsidies, as in 20261031_policy_schema.sql section H, without review_status
 -- ---------------------------------------------------------------------------
-create view public.current_subsidies
+create or replace view public.current_subsidies
 with (security_invoker = true) as
 with targets as (
   select p.id as provision_id, p.scheme_code, p.claim_year, p.valid_from, p.valid_to,

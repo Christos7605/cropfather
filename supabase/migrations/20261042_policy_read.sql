@@ -29,9 +29,8 @@
 -- The three functions are what the model calls (supabase.rpc). Everything in them comes from the
 -- tables: no amount or rule is written here.
 --
--- Run after 20261041_crop_economics.sql; the seed can be loaded before or after. Do not re-run
--- 20261039_drop_review_status.sql after this file (it drops crop_subsidies, which the views here
--- read). Runs in one transaction. Idempotent: safe to run more than once.
+-- Run after 20261041_crop_economics.sql. The seed can be loaded before or after.
+-- Runs in one transaction. Idempotent: safe to run more than once.
 
 begin;
 

@@ -19,8 +19,9 @@
 -- a season with any unpriced or estimated line is left out, so the averages hold only what
 -- farmers reported.
 --
--- Run after 20261040_crop_subsidies.sql, and BEFORE loading data/policy/seed.sql (the seed now
--- uses price_kind = 'mock', which this file allows). Runs in one transaction. Idempotent.
+-- Run after 20261040_crop_subsidies.sql. The price check keeps 'proxy' as well as 'mock',
+-- so running this file after 20261049_price_ranges_irrigation_baselines.sql does not
+-- reject rows that already use a borrowed price. Runs in one transaction. Idempotent.
 
 begin;
 
@@ -32,7 +33,7 @@ alter table public.crops
   add constraint crops_price_check
   check ((price_eur_kg is null or price_eur_kg > 0)
          and (price_eur_kg is null) = (price_kind is null)
-         and (price_kind is null or price_kind in ('market', 'indicative', 'mock')));
+         and (price_kind is null or price_kind in ('market', 'proxy', 'indicative', 'mock')));
 
 -- ---------------------------------------------------------------------------
 -- 2. Average costs over all farmers
