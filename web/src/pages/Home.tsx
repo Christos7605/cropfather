@@ -364,7 +364,7 @@ export const Home: React.FC = () => {
               <ul className="space-y-1.5">
                 <li><span className="hover:text-cf-text transition-colors cursor-default">{t('footer.faq')}</span></li>
                 <li>
-                  <a href="/reports/AppPP.pptx" className="hover:text-cf-text transition-colors">
+                  <a href="/presentation.pptx" download="Cropfather-presentation.pptx" className="hover:text-cf-text transition-colors">
                     {t('footer.presentation')}
                   </a>
                 </li>
