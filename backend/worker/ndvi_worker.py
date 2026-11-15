@@ -268,6 +268,26 @@ def main():
     if args.once:
         once(rest)
         return
+
+    def heartbeat():
+        while True:
+            try:
+                rest.beat()
+            except Exception as err:
+                print(f"heartbeat failed: {err}", flush=True)
+            time.sleep(POLL_SECONDS)
+
+    threading.Thread(target=heartbeat, name="ndvi-heartbeat", daemon=True).start()
+    print("Watching prediction_runs.", flush=True)
+    while True:
+        try:
+            row = claim(rest)
+        except Exception as err:
+            print(f"claim failed: {err}", flush=True)
+            time.sleep(POLL_SECONDS)
+            continue
+        if row is None:
+            time.sleep(POLL_SECONDS)
             continue
         try:
             handle(rest, row)
