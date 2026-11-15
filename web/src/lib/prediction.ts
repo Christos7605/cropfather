@@ -42,12 +42,55 @@ export const GITHUB_NDVI_WAIT_MS = 25 * 60 * 1000;
 /** A GitHub model run still in predict or scoring after this is cancelled. */
 export const GITHUB_PREDICT_WAIT_MS = 60 * 60 * 1000;
 
-/** The four choices predictor_model.py writes. current may be a crop id. */
-export interface PredictionChoices {
-  environmental: string | null;
-  economic: string | null;
-  current: string | null;
-  mixed: string | null;
+/** One scored recommendation. type "mix" is the balanced choice. crop is a crop id. */
+export interface PredictionOption {
+  type: string;
+  title?: string;
+  crop: string | null;
+  why?: string;
+  comment?: string;
+  scores_pct?: Record<string, number | null> | null;
+  economics_eur_ha?: Record<string, number | string | null> | null;
+  water?: Record<string, number | null> | null;
+  nitrogen_kg_ha?: number | null;
+  comments?: string[];
+  warnings?: string[];
+  also_best_for?: string[];
+}
+
+export interface PredictionRank {
+  crop: string;
+  overall_pct?: number | null;
+  economic_pct?: number | null;
+  environmental_pct?: number | null;
+  margin_eur_ha?: number | null;
+}
+
+/** The recommendations object predictor_model.py writes. Older rows only have the four names. */
+export interface PredictionResults {
+  environmental?: string | null;
+  economic?: string | null;
+  current?: string | null;
+  mixed?: string | null;
+  confidence_pct?: number | null;
+  field?: {
+    centre?: Array<number | null> | null;
+    run_date?: string | null;
+    coming_season?: string | null;
+    climate_window?: string | null;
+    climate_years?: string | number | null;
+  } | null;
+  inputs?: Record<string, { value?: unknown; source?: string | null }> | null;
+  weights?: {
+    parts?: Record<string, number | null> | null;
+    environment?: Record<string, number | null> | null;
+    risk_weight?: number | null;
+    water_price_eur_m3?: number | null;
+  } | null;
+  options?: PredictionOption[] | null;
+  ranking?: PredictionRank[] | null;
+  removed_by_pruning?: Record<string, string[]> | null;
+  notes?: string[] | null;
 }
 
 export interface PredictionRun {
@@ -57,7 +100,7 @@ export interface PredictionRun {
   vegetated: boolean | null;
   observed_on: string | null;
   error: string | null;
-  results: PredictionChoices | null;
+  results: PredictionResults | null;
   created_at: string;
 }
 

@@ -203,13 +203,14 @@ def run_model(paths, out):
 
 
 def read_options(path):
+    """Keep the whole recommendations object. The page reads options, scores, and the four names."""
     payload = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(payload, dict):
         raise RuntimeError("The model returned no choices.")
-    return {
-        key: payload.get(key) if isinstance(payload.get(key), str) else None
-        for key in ("economic", "environmental", "mixed", "current")
-    }
+    named = any(isinstance(payload.get(key), str) for key in ("economic", "environmental", "mixed", "current"))
+    if not named and not isinstance(payload.get("options"), list):
+        raise RuntimeError("The model returned no choices.")
+    return payload
 
 
 def finish(rest, run_id, patch):
