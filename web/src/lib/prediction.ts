@@ -66,6 +66,13 @@ export async function loadPredictionRun(runId: string): Promise<PredictionRun | 
   return (data as PredictionRun | null) ?? null;
 }
 
+/** True when the NDVI worker has written a heartbeat in the last 20 seconds. */
+export async function predictionWorkerLive(): Promise<boolean> {
+  const { data, error } = await supabase.rpc('prediction_worker_live');
+  if (error) return false;
+  return data === true;
+}
+
 /** cancel, override, or finish. The database refuses any other move. */
 export async function choosePrediction(runId: string, choice: 'cancel' | 'override' | 'finish'): Promise<void> {
   const { error } = await supabase.rpc('farmer_set_prediction', { p_run_id: runId, p_choice: choice });

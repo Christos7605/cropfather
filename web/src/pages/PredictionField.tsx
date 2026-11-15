@@ -13,11 +13,12 @@ import {
   loadRunningPrediction,
   PREDICTION_KINDS,
   PREDICTION_TIMINGS,
+  predictionWorkerLive,
   type PredictionKind,
 } from '../lib/prediction';
 
 type Gate = 'ready' | 'missing' | 'farm' | 'field' | 'other';
-type Phase = 'ndvi' | 'warn' | 'failed' | 'predict' | 'done';
+type Phase = 'ndvi' | 'warn' | 'failed' | 'down' | 'predict' | 'done';
 
 // The result of a rotation request. NDVI follows the worker; the prediction wait is still a placeholder.
 export const PredictionField: React.FC = () => {
@@ -133,9 +134,15 @@ const PredictionRun: React.FC<{ userId: string; runId: string; name: string }> =
     if (phase !== 'ndvi') return;
     let cancelled = false;
     const tick = () => {
-      loadPredictionRun(runId)
-        .then((row) => {
+      Promise.all([loadPredictionRun(runId), predictionWorkerLive()])
+        .then(([row, live]) => {
           if (cancelled || !row) return;
+          if ((row.status === 'ndvi' || row.status === 'running') && !live) {
+            void choosePrediction(runId, 'cancel').catch(() => undefined);
+            clearRunningPrediction(userId);
+            setPhase('down');
+            return;
+          }
           if (row.status === 'needs_override') {
             setObservedOn(row.observed_on);
             setPhase('warn');
@@ -240,6 +247,15 @@ const PredictionRun: React.FC<{ userId: string; runId: string; name: string }> =
               spinning={predictActive}
             />
           </ol>
+
+          {phase === 'down' && (
+            <div className="cf-glass-sage rounded-2xl px-5 py-4 space-y-4" role="alert">
+              <p className="text-sm text-cf-text leading-relaxed">{t('prediction.workerDown')}</p>
+              <Link to="/prediction" className="cf-btn-secondary inline-flex px-4 py-2.5 rounded-xl text-sm">
+                {t('prediction.backToList')}
+              </Link>
+            </div>
+          )}
 
           {phase === 'ndvi' && (
             <div className="h-1.5 rounded-full bg-cf-hero overflow-hidden" role="progressbar" aria-valuetext={phaseLabel}>

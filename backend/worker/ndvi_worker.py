@@ -19,6 +19,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import urllib.error
 import urllib.parse
@@ -74,7 +75,7 @@ class Rest:
         self.url = url.rstrip("/")
         self.key = key
 
-    def request(self, method, path, query=None, body=None, representation=False):
+    def request(self, method, path, query=None, body=None, representation=False, prefer=None):
         target = self.url + "/rest/v1/" + path
         if query:
             target += "?" + urllib.parse.urlencode(query)
@@ -85,6 +86,8 @@ class Rest:
         req.add_header("Content-Type", "application/json")
         if representation:
             req.add_header("Prefer", "return=representation")
+        elif prefer:
+            req.add_header("Prefer", prefer)
         try:
             with urllib.request.urlopen(req, timeout=30) as response:
                 raw = response.read().decode("utf-8")
@@ -94,6 +97,15 @@ class Rest:
         if not raw:
             return None
         return json.loads(raw)
+
+    def beat(self):
+        self.request(
+            "POST",
+            "prediction_worker",
+            {"on_conflict": "id"},
+            {"id": "ndvi", "seen_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())},
+            prefer="resolution=merge-duplicates,return=minimal",
+        )
 
 
 def claim(rest):
@@ -200,6 +212,16 @@ def main():
     if not CHECKER.is_file():
         raise SystemExit(f"NDVI checker not found at {CHECKER}.")
     rest = Rest(url, key)
+
+    def heartbeat():
+        while True:
+            try:
+                rest.beat()
+            except Exception as err:
+                print(f"heartbeat failed: {err}", flush=True)
+            time.sleep(POLL_SECONDS)
+
+    threading.Thread(target=heartbeat, name="ndvi-heartbeat", daemon=True).start()
     print("Watching prediction_runs.", flush=True)
     while True:
         try:

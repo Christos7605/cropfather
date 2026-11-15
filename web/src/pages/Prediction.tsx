@@ -7,7 +7,11 @@ import { describeError, listMyFields, type FieldRecord } from '../lib/fields';
 import { fieldPath, surveyProgress } from '../lib/fieldStatus';
 import { isFarmQuestionnaireComplete, loadFarmResponse } from '../lib/questionnaire';
 import {
+  choosePrediction,
+  clearRunningPrediction,
+  loadPredictionRun,
   loadRunningPrediction,
+  predictionWorkerLive,
   recordPredictionRequest,
   saveRunningPrediction,
   startPredictionRun,
@@ -26,19 +30,32 @@ export const Prediction: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [startingId, setStartingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [workerDown, setWorkerDown] = useState(false);
 
   useEffect(() => {
     if (!userId) return;
     let cancelled = false;
     setLoading(true);
-    Promise.all([listMyFields(), loadFarmResponse()])
-      .then(([fieldList, farm]) => {
+    Promise.all([listMyFields(), loadFarmResponse(), predictionWorkerLive()])
+      .then(async ([fieldList, farm, live]) => {
         if (cancelled) return;
         const stored = loadRunningPrediction(userId);
-        const stillThere = stored && fieldList.some((field) => field.id === stored.fieldId) ? stored : null;
+        let stillThere = stored && fieldList.some((field) => field.id === stored.fieldId) ? stored : null;
+        let stopped = false;
+        if (stillThere && !live) {
+          const row = await loadPredictionRun(stillThere.runId);
+          if (!cancelled && row && (row.status === 'ndvi' || row.status === 'running')) {
+            await choosePrediction(stillThere.runId, 'cancel').catch(() => undefined);
+            clearRunningPrediction(userId);
+            stillThere = null;
+            stopped = true;
+          }
+        }
+        if (cancelled) return;
         setFields(fieldList);
         setFarmReady(isFarmQuestionnaireComplete(farm));
         setRunning(stillThere);
+        setWorkerDown(stopped);
         setError(null);
       })
       .catch((err: unknown) => {
@@ -60,7 +77,13 @@ export const Prediction: React.FC = () => {
     if (surveyProgress(field).state !== 'done') return;
     setStartingId(field.id);
     setError(null);
+    setWorkerDown(false);
     try {
+      if (!(await predictionWorkerLive())) {
+        setWorkerDown(true);
+        setStartingId(null);
+        return;
+      }
       await recordPredictionRequest(field.id);
       const runId = await startPredictionRun(field.id);
       saveRunningPrediction(userId, field.id, runId);
@@ -81,12 +104,28 @@ export const Prediction: React.FC = () => {
           <p className="text-sm sm:text-base text-cf-muted leading-relaxed max-w-2xl">{t('prediction.intro')}</p>
         </div>
 
+        <div className="space-y-3 max-w-2xl">
+          <div className="cf-glass-sage rounded-2xl px-5 py-4">
+            <p className="text-sm text-cf-text leading-relaxed">{t('prediction.disclaimer')}</p>
+          </div>
+          <div className="cf-glass-sage rounded-2xl px-5 py-4">
+            <p className="text-sm text-cf-text leading-relaxed">{t('prediction.emptyFieldNotice')}</p>
+          </div>
+        </div>
+
         {loading ? (
           <p className="text-sm text-cf-muted">{t('prediction.loading')}</p>
         ) : error ? (
           <p className="text-sm text-red-900" role="alert">{error || t('prediction.loadFailed')}</p>
         ) : (
           <>
+            {workerDown && (
+              <div className="cf-glass-sage rounded-2xl px-5 py-4 flex gap-3" role="alert">
+                <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-cf-primary" aria-hidden="true" />
+                <p className="text-sm text-cf-text leading-relaxed">{t('prediction.workerDown')}</p>
+              </div>
+            )}
+
             {!farmReady && (
               <div className="cf-glass-sage rounded-2xl px-5 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div className="flex gap-3">

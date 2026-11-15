@@ -84,7 +84,7 @@ begin
     raise exception 'Prediction not found' using errcode = 'P0002';
   end if;
 
-  if p_choice = 'cancel' and v_status in ('needs_override', 'failed') then
+  if p_choice = 'cancel' and v_status in ('ndvi', 'running', 'needs_override', 'failed') then
     update public.prediction_runs set status = 'cancelled' where id = p_run_id;
   elsif p_choice = 'override' and v_status = 'needs_override' then
     update public.prediction_runs set status = 'predict' where id = p_run_id;

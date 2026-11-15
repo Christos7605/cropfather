@@ -40,6 +40,9 @@ export const en = {
   prediction: {
     title: 'Rotation prediction',
     intro: 'Choose one field and request a rotation for it. Only one prediction can run at a time.',
+    disclaimer: 'This prediction comes from a model and can be wrong.',
+    emptyFieldNotice: 'Before you request a prediction, make sure the field is empty and nothing is growing there.',
+    workerDown: 'The prediction infrastructure is not running, so the request cannot continue.',
     open: 'Prediction',
     loading: 'Loading your fields...',
     loadFailed: 'Could not load your fields.',
