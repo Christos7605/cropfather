@@ -39,7 +39,7 @@ import {
   linkedWaterPoint,
   type WaterPoint,
 } from '../../lib/waterPoints';
-import { FIELD_QUESTIONNAIRE, countedQuestions } from '../../lib/questionnaire';
+import { surveyProgress } from '../../lib/fieldStatus';
 
 // Shared components
 const PanelTitle: React.FC<{ icon: React.ReactNode; children: React.ReactNode; tone?: string }> = ({
@@ -683,12 +683,9 @@ export const FieldDetailPanel: React.FC<DetailProps> = ({
 // Questionnaire progress for one field
 const QuestionnaireCard: React.FC<{ field: FieldRecord }> = ({ field }) => {
   const { t } = useLanguage();
-  // Answers to an older question set count as not started for the current one
-  const current = field.survey_version === FIELD_QUESTIONNAIRE.version ? field.survey_status : null;
-  const totalNow = countedQuestions(FIELD_QUESTIONNAIRE).length;
-  const answered = current ? field.survey_answered ?? 0 : 0;
-  const total = current ? field.survey_total ?? totalNow : totalNow;
-  const percent = total ? Math.round((answered / total) * 100) : 0;
+  const progress = surveyProgress(field);
+  const started = progress.state !== 'notStarted';
+  const percent = progress.total ? Math.round((progress.answered / progress.total) * 100) : 0;
   const to = `/fields/${encodeURIComponent(field.id)}/questionnaire`;
 
   return (
@@ -698,15 +695,15 @@ const QuestionnaireCard: React.FC<{ field: FieldRecord }> = ({ field }) => {
           <ClipboardList className="w-3.5 h-3.5 text-cf-primary" aria-hidden="true" />
           {t('fieldQuestionnaire.card.title')}
         </p>
-        {current === 'submitted' && <CheckCircle2 className="w-4 h-4 text-cf-primary" aria-hidden="true" />}
+        {progress.state === 'done' && <CheckCircle2 className="w-4 h-4 text-cf-primary" aria-hidden="true" />}
       </div>
 
-      {current ? (
+      {started ? (
         <div className="space-y-1.5">
           <p className="text-xs text-cf-muted tabular-nums">
-            {current === 'submitted'
-              ? t('fieldQuestionnaire.card.submitted', { answered: String(answered), total: String(total) })
-              : t('fieldQuestionnaire.card.inProgress', { answered: String(answered), total: String(total) })}
+            {progress.state === 'done'
+              ? t('fieldQuestionnaire.card.submitted', { answered: String(progress.answered), total: String(progress.total) })
+              : t('fieldQuestionnaire.card.inProgress', { answered: String(progress.answered), total: String(progress.total) })}
           </p>
           <div className="h-1.5 rounded-full bg-cf-hero overflow-hidden" aria-hidden="true">
             <div className="h-full rounded-full bg-cf-primary" style={{ width: `${percent}%` }} />
@@ -717,9 +714,9 @@ const QuestionnaireCard: React.FC<{ field: FieldRecord }> = ({ field }) => {
       )}
 
       <Link to={to} className={`${secondaryBtn} w-full`}>
-        {current === 'submitted'
+        {progress.state === 'done'
           ? t('fieldQuestionnaire.card.review')
-          : current
+          : started
             ? t('fieldQuestionnaire.card.continue')
             : t('fieldQuestionnaire.card.start')}
         <ChevronRight className="w-4 h-4" />

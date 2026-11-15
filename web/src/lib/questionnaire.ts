@@ -41,6 +41,8 @@ export type Question =
   | (Base & { type: 'months' })
   // 1-5 scale with labels at both ends, plus "I don't know"
   | (Base & { type: 'scale'; lowKey: MessageKey; highKey: MessageKey })
+  // A numeric slider. The stored answer is a number on the question's steps.
+  | (Base & { type: 'range'; min: number; max: number; step: number })
   // A year typed by the farmer, plus "never" and "I don't know"
   | (Base & { type: 'year'; noneKey: MessageKey })
   | (Base & { type: 'text'; maxLength: number; placeholderKey?: MessageKey })
@@ -164,6 +166,15 @@ export const FIELD_QUESTIONNAIRE: QuestionnaireDef = {
           titleKey: 'fieldQuestionnaire.q.lastSoilTest.title',
           helpKey: 'fieldQuestionnaire.q.lastSoilTest.help',
           noneKey: 'fieldQuestionnaire.q.lastSoilTest.never',
+        },
+        {
+          id: 'maxMonths',
+          type: 'range',
+          min: 2,
+          max: 12,
+          step: 0.5,
+          titleKey: 'fieldQuestionnaire.q.maxMonths.title',
+          helpKey: 'fieldQuestionnaire.q.maxMonths.help',
         },
         {
           id: 'notes',
@@ -311,6 +322,14 @@ export function cleanAnswers(def: QuestionnaireDef, answers: Answers): Answers {
   for (const q of allQuestions(def)) {
     const v = answers[q.id];
     if (!isAnswered(v)) continue;
+    if (q.type === 'range') {
+      if (typeof v !== 'number') continue;
+      const steps = Math.round((v - q.min) / q.step);
+      const snapped = Math.round((q.min + steps * q.step) * 1000) / 1000;
+      if (snapped < q.min || snapped > q.max) continue;
+      out[q.id] = snapped;
+      continue;
+    }
     out[q.id] = typeof v === 'string' ? v.trim().slice(0, q.type === 'text' ? q.maxLength : 64) : v;
   }
   return out;

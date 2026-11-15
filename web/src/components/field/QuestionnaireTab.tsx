@@ -59,7 +59,7 @@ export const QuestionnaireTab: React.FC<{ fieldId: string }> = ({ fieldId }) => 
   const answers: Answers = response?.answers ?? {};
   const total = countedQuestions(FIELD_QUESTIONNAIRE).length;
   const answered = countAnswered(FIELD_QUESTIONNAIRE, answers);
-  const done = response?.status === 'submitted';
+  const done = response?.status === 'submitted' && answered === total;
   const percent = total ? Math.round((answered / total) * 100) : 0;
   const to = `/fields/${encodeURIComponent(fieldId)}/questionnaire`;
 
@@ -94,6 +94,10 @@ export const QuestionnaireTab: React.FC<{ fieldId: string }> = ({ fieldId }) => 
       }
       case 'scale':
         return t('field.questionnaire.scaleValue', { value: String(value), low: t(q.lowKey), high: t(q.highKey) });
+      case 'range':
+        return t('fieldQuestionnaire.q.maxMonths.value', {
+          months: Number(value).toLocaleString(locale, { minimumFractionDigits: Number.isInteger(Number(value)) ? 0 : 1, maximumFractionDigits: 1 }),
+        });
       case 'year':
         return value === NONE ? t(q.noneKey) : String(value);
       case 'text':

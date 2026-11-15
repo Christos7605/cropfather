@@ -245,6 +245,63 @@ export const MonthsChoice: React.FC<InputProps<Extract<Question, { type: 'months
   );
 };
 
+function snapToStep(value: number, min: number, max: number, step: number): number {
+  const steps = Math.round((value - min) / step);
+  const snapped = Math.round((min + steps * step) * 1000) / 1000;
+  return Math.min(max, Math.max(min, snapped));
+}
+
+// Slider on fixed steps. Nothing is stored until the farmer moves or releases it.
+export const RangeChoice: React.FC<InputProps<Extract<Question, { type: 'range' }>>> = ({
+  question,
+  value,
+  onChange,
+}) => {
+  const { t, locale } = useLanguage();
+  const chosen = typeof value === 'number' ? snapToStep(value, question.min, question.max, question.step) : null;
+  const shown = chosen ?? question.min;
+  const months = (n: number) =>
+    n.toLocaleString(locale, { minimumFractionDigits: Number.isInteger(n) ? 0 : 1, maximumFractionDigits: 1 });
+  const commit = (raw: string) => {
+    const n = Number(raw);
+    if (!Number.isFinite(n)) return;
+    onChange(snapToStep(n, question.min, question.max, question.step));
+  };
+
+  return (
+    <div className="space-y-3">
+      <p className="text-sm font-semibold text-cf-text tabular-nums" aria-live="polite">
+        {chosen == null
+          ? t('fieldQuestionnaire.q.maxMonths.unset')
+          : t('fieldQuestionnaire.q.maxMonths.value', { months: months(chosen) })}
+      </p>
+      <input
+        type="range"
+        min={question.min}
+        max={question.max}
+        step={question.step}
+        value={shown}
+        aria-labelledby={`${question.id}-title`}
+        aria-valuemin={question.min}
+        aria-valuemax={question.max}
+        aria-valuenow={shown}
+        aria-valuetext={
+          chosen == null
+            ? t('fieldQuestionnaire.q.maxMonths.unset')
+            : t('fieldQuestionnaire.q.maxMonths.value', { months: months(chosen) })
+        }
+        onChange={(e) => commit(e.target.value)}
+        onPointerUp={(e) => commit((e.target as HTMLInputElement).value)}
+        className="w-full accent-cf-primary cursor-pointer"
+      />
+      <div className="flex justify-between text-xs text-cf-muted tabular-nums" aria-hidden="true">
+        <span>{t('fieldQuestionnaire.q.maxMonths.value', { months: months(question.min) })}</span>
+        <span>{t('fieldQuestionnaire.q.maxMonths.value', { months: months(question.max) })}</span>
+      </div>
+    </div>
+  );
+};
+
 // 1-5 scale with labels at both ends
 export const ScaleChoice: React.FC<InputProps<Extract<Question, { type: 'scale' }>>> = ({
   question,
@@ -517,6 +574,8 @@ export const QuestionInput: React.FC<InputProps<Question>> = ({ question, value,
       return <MonthsChoice question={question} value={value} onChange={onChange} />;
     case 'scale':
       return <ScaleChoice question={question} value={value} onChange={onChange} />;
+    case 'range':
+      return <RangeChoice question={question} value={value} onChange={onChange} />;
     case 'year':
       return <YearInput question={question} value={value} onChange={onChange} />;
     case 'text':

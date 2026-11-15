@@ -52,10 +52,12 @@ export function surveyProgress(field: FieldRecord): SurveyProgress {
   if (field.survey_version !== FIELD_QUESTIONNAIRE.version || !field.survey_status) {
     return { state: 'notStarted', answered: 0, total: totalNow };
   }
+  const answered = Math.min(field.survey_answered ?? 0, totalNow);
+  const coversCurrent = (field.survey_total ?? 0) >= totalNow && answered >= totalNow;
   return {
-    state: field.survey_status === 'submitted' ? 'done' : 'inProgress',
-    answered: field.survey_answered ?? 0,
-    total: field.survey_total ?? totalNow,
+    state: field.survey_status === 'submitted' && coversCurrent ? 'done' : 'inProgress',
+    answered,
+    total: totalNow,
   };
 }
 

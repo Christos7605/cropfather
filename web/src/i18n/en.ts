@@ -704,6 +704,12 @@ export const en = {
         help: 'The year is enough.',
         never: 'Never',
       },
+      maxMonths: {
+        title: 'What is the maximum number of months you are prepared to cultivate a crop on this field?',
+        help: 'Drag from 2 to 12 months, in steps of half a month. This is the longest you will keep one crop in this field.',
+        value: '{months} months',
+        unset: 'Move the slider to choose.',
+      },
       notes: {
         title: 'Anything else we should know about this field?',
         help: 'For example pests, a weed that keeps coming back, or a corner that always does worse.',
