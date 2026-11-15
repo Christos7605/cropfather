@@ -4,6 +4,16 @@ An institutional-grade decision-support system for Greek farmers to evaluate cli
 
 ---
 
+## Team 
+
+**Antonopoulos Athanasios**:  Research 
+**Foteinias Ioannis**:  Database, Economic Research
+**Kalafatsis Kyriakos**:  Backend, Research 
+**Manolas Antonios**:  Research, UI, Presentation
+**Theocharis Christos**:  Frontend, UI, Database
+
+--
+
 ## Tech Stack
 
 - **Frontend:** React + Vite + TypeScript + Tailwind CSS

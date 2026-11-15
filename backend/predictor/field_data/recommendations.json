@@ -1,0 +1,378 @@
+{
+  "economic": "common_vetch",
+  "environmental": "common_vetch",
+  "mixed": "common_vetch",
+  "current": "cotton",
+  "field": {
+    "centre": [
+      38.433975,
+      21.184383
+    ],
+    "run_date": "2025-11-30",
+    "coming_season": "winter",
+    "climate_window": "12-01..05-30",
+    "climate_years": "2024/2025 2023/2024 2022/2023"
+  },
+  "confidence_pct": 95.0,
+  "inputs": {
+    "ece": {
+      "value": null,
+      "source": "missing"
+    },
+    "salinity_answer": {
+      "value": 6.0,
+      "source": "farmer"
+    },
+    "salinity_model": {
+      "value": true,
+      "source": "measured"
+    },
+    "ph": {
+      "value": 7.62,
+      "source": "measured"
+    },
+    "months": {
+      "value": [
+        12.56,
+        11.01,
+        10.3,
+        13.33,
+        15.97,
+        19.8
+      ],
+      "source": "measured"
+    },
+    "coldest": {
+      "value": 10.3,
+      "source": "measured"
+    },
+    "warmest": {
+      "value": 19.8,
+      "source": "measured"
+    },
+    "rain_annual": {
+      "value": 840.07,
+      "source": "measured"
+    },
+    "clay": {
+      "value": 41.7,
+      "source": "measured"
+    },
+    "drainage": {
+      "value": 0.9,
+      "source": "farmer"
+    },
+    "frost": {
+      "value": 0.0,
+      "source": "farmer"
+    },
+    "stony": {
+      "value": true,
+      "source": "farmer"
+    },
+    "water_shortage": {
+      "value": 1,
+      "source": "farmer"
+    },
+    "risk_attitude": {
+      "value": 2,
+      "source": "farmer"
+    },
+    "priorities": {
+      "value": [
+        "lessTools",
+        "cutCosts",
+        "lessWork"
+      ],
+      "source": "farmer"
+    },
+    "machinery": {
+      "value": "own",
+      "source": "farmer"
+    },
+    "labour": {
+      "value": "family",
+      "source": "farmer"
+    },
+    "soil_test": {
+      "value": false,
+      "source": "farmer"
+    }
+  },
+  "weights": {
+    "parts": {
+      "economic": 1.5,
+      "environmental": 1.0,
+      "practical": 1.5
+    },
+    "environment": {
+      "water": 1.0,
+      "nitrogen": 1.0,
+      "rotation": 0.8
+    },
+    "risk_weight": 0.3,
+    "water_price_eur_m3": 0.054
+  },
+  "options": [
+    {
+      "type": "economic",
+      "title": "Most economically beneficial",
+      "crop": "common_vetch",
+      "why": "highest expected margin per hectare, adjusted for risk",
+      "scores_pct": {
+        "overall": 77.4,
+        "economic": 40.1,
+        "environmental": 99.5,
+        "practical": 100.0,
+        "expected_yield_of_potential": 90.5,
+        "risk": 10.5
+      },
+      "economics_eur_ha": {
+        "yield_kg_ha": 4523,
+        "price_eur_kg": 0.16,
+        "revenue_eur_ha": 724,
+        "fertiliser_eur_ha": 0,
+        "water_cost_eur_ha": 3,
+        "costs_eur_ha": 403,
+        "margin_eur_ha": 321,
+        "source": "estimate"
+      },
+      "water": {
+        "etc_mm": 300.0,
+        "eff_rain_mm": 295.7,
+        "net_mm": 4.3,
+        "gross_m3_ha": 57,
+        "cost_eur_ha": 3.08
+      },
+      "nitrogen_kg_ha": 0,
+      "comments": [
+        "temperature is 87% of optimal (14-23 °C)",
+        "soil pH 7.62 is outside the optimal 6-7",
+        "rain covers the crop's water need",
+        "good rotation after cotton",
+        "legume: fixes its own nitrogen and leaves some for the next crop"
+      ],
+      "warnings": [
+        "you report salinity 'often', and this crop is salt-sensitive (full yield only up to ECe 3 dS/m)"
+      ],
+      "also_best_for": [
+        "environmental",
+        "mix"
+      ]
+    },
+    {
+      "type": "environmental",
+      "title": "Most environmentally beneficial",
+      "crop": "common_vetch",
+      "why": "least irrigation and nitrogen, and the best rotation",
+      "scores_pct": {
+        "overall": 77.4,
+        "economic": 40.1,
+        "environmental": 99.5,
+        "practical": 100.0,
+        "expected_yield_of_potential": 90.5,
+        "risk": 10.5
+      },
+      "economics_eur_ha": {
+        "yield_kg_ha": 4523,
+        "price_eur_kg": 0.16,
+        "revenue_eur_ha": 724,
+        "fertiliser_eur_ha": 0,
+        "water_cost_eur_ha": 3,
+        "costs_eur_ha": 403,
+        "margin_eur_ha": 321,
+        "source": "estimate"
+      },
+      "water": {
+        "etc_mm": 300.0,
+        "eff_rain_mm": 295.7,
+        "net_mm": 4.3,
+        "gross_m3_ha": 57,
+        "cost_eur_ha": 3.08
+      },
+      "nitrogen_kg_ha": 0,
+      "comments": [
+        "temperature is 87% of optimal (14-23 °C)",
+        "soil pH 7.62 is outside the optimal 6-7",
+        "rain covers the crop's water need",
+        "good rotation after cotton",
+        "legume: fixes its own nitrogen and leaves some for the next crop"
+      ],
+      "warnings": [
+        "you report salinity 'often', and this crop is salt-sensitive (full yield only up to ECe 3 dS/m)"
+      ],
+      "also_best_for": [
+        "economic",
+        "mix"
+      ]
+    },
+    {
+      "type": "mix",
+      "title": "Best mix of both",
+      "crop": "common_vetch",
+      "why": "best weighted balance of economics, environment and practicality (your priorities included)",
+      "scores_pct": {
+        "overall": 77.4,
+        "economic": 40.1,
+        "environmental": 99.5,
+        "practical": 100.0,
+        "expected_yield_of_potential": 90.5,
+        "risk": 10.5
+      },
+      "economics_eur_ha": {
+        "yield_kg_ha": 4523,
+        "price_eur_kg": 0.16,
+        "revenue_eur_ha": 724,
+        "fertiliser_eur_ha": 0,
+        "water_cost_eur_ha": 3,
+        "costs_eur_ha": 403,
+        "margin_eur_ha": 321,
+        "source": "estimate"
+      },
+      "water": {
+        "etc_mm": 300.0,
+        "eff_rain_mm": 295.7,
+        "net_mm": 4.3,
+        "gross_m3_ha": 57,
+        "cost_eur_ha": 3.08
+      },
+      "nitrogen_kg_ha": 0,
+      "comments": [
+        "temperature is 87% of optimal (14-23 °C)",
+        "soil pH 7.62 is outside the optimal 6-7",
+        "rain covers the crop's water need",
+        "good rotation after cotton",
+        "legume: fixes its own nitrogen and leaves some for the next crop"
+      ],
+      "warnings": [
+        "you report salinity 'often', and this crop is salt-sensitive (full yield only up to ECe 3 dS/m)"
+      ],
+      "also_best_for": [
+        "economic",
+        "environmental"
+      ]
+    },
+    {
+      "type": "current",
+      "title": "Continue the current crop",
+      "crop": "cotton",
+      "why": "what you grew last season (2026)",
+      "scores_pct": {
+        "overall": 38.0,
+        "economic": 55.4,
+        "environmental": 39.0,
+        "practical": 20.0,
+        "expected_yield_of_potential": 83.4,
+        "risk": 28.4
+      },
+      "economics_eur_ha": {
+        "yield_kg_ha": 1000,
+        "price_eur_kg": 0.7,
+        "revenue_eur_ha": 1300,
+        "fertiliser_eur_ha": 135,
+        "water_cost_eur_ha": 555.56,
+        "costs_eur_ha": 691,
+        "margin_eur_ha": 609,
+        "subsidy_eur_ha_not_included": 1000,
+        "source": "farmer"
+      },
+      "water": {
+        "etc_mm": 426.7,
+        "eff_rain_mm": 295.7,
+        "net_mm": 131.0,
+        "gross_m3_ha": 1747,
+        "cost_eur_ha": 94.34
+      },
+      "nitrogen_kg_ha": 150,
+      "comments": [
+        "temperature is 14% of optimal (22-36 °C)",
+        "soil pH 7.62 is outside the optimal 6-7.5",
+        "needs about 1747 m3/ha of irrigation (31% of its water)",
+        "needs a special harvester (own or contractor)",
+        "uses your own 2026 figures for cotton"
+      ],
+      "warnings": [
+        "would be removed by pruning: season summer ≠ coming season winter; shortest cycle 150 days > farmer's max 100 days; coldest month 10.3 °C < absolute min 15 °C",
+        "same crop as last season: higher pest / disease and soil-fatigue risk",
+        "monthly temperatures come close to the crop's absolute limit"
+      ]
+    }
+  ],
+  "ranking": [
+    {
+      "crop": "common_vetch",
+      "overall_pct": 77.4,
+      "economic_pct": 40.1,
+      "environmental_pct": 99.5,
+      "margin_eur_ha": 321
+    },
+    {
+      "crop": "field_pea",
+      "overall_pct": 73.3,
+      "economic_pct": 35.0,
+      "environmental_pct": 90.9,
+      "margin_eur_ha": 241
+    },
+    {
+      "crop": "rapeseed",
+      "overall_pct": 67.6,
+      "economic_pct": 36.2,
+      "environmental_pct": 66.2,
+      "margin_eur_ha": 243
+    },
+    {
+      "crop": "barley",
+      "overall_pct": 65.9,
+      "economic_pct": 25.8,
+      "environmental_pct": 74.7,
+      "margin_eur_ha": 91
+    },
+    {
+      "crop": "soft_wheat",
+      "overall_pct": 61.9,
+      "economic_pct": 20.0,
+      "environmental_pct": 67.6,
+      "margin_eur_ha": 6
+    }
+  ],
+  "removed_by_pruning": {
+    "maize": [
+      "salinity: only 82.0% of full yield at ECe 3.2 dS/m (needs 90%)"
+    ],
+    "cotton": [
+      "season summer ≠ coming season winter",
+      "shortest cycle 150 days > farmer's max 100 days",
+      "coldest month 10.3 °C < absolute min 15 °C"
+    ],
+    "rice": [
+      "season summer ≠ coming season winter"
+    ],
+    "soybean": [
+      "season summer ≠ coming season winter"
+    ],
+    "sunflower": [
+      "season summer ≠ coming season winter"
+    ],
+    "sorghum": [
+      "season summer ≠ coming season winter"
+    ],
+    "peanut": [
+      "season summer ≠ coming season winter"
+    ],
+    "sugar_beet": [
+      "season summer ≠ coming season winter"
+    ],
+    "clover": [
+      "season summer ≠ coming season winter"
+    ],
+    "durum_wheat": [
+      "shortest cycle 120 days > farmer's max 100 days"
+    ]
+  },
+  "notes": [
+    "Prices, yields and costs of crops you haven't grown are rough estimates (model_data/crop_profiles.json).",
+    "Margins leave out subsidies, so all crops are compared on the same basis.",
+    "Scores compare the crops with each other; they are not absolute grades.",
+    "The current crop is scored on the coming season's conditions, even if it would normally grow in another season."
+  ]
+}

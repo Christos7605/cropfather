@@ -15,6 +15,7 @@ SALINITY_DIR = Path(__file__).resolve().parent / "salinity"
 sys.path.insert(0, str(SALINITY_DIR))
 
 from predict import predict_field
+from scoring import build_recommendations      # the scoring model (scoring.py + model_data/crop_profiles.json)
 
 #---------------------------------------------------------------------------------------------#
 #                                       DATA ANALYSIS                                         #
@@ -43,13 +44,15 @@ def slope_func(slope, percentage, full_yield):
 
 def load_farmer(general_path=DEMO_GENERAL_INFO, field_path=DEMO_FIELD_INFO, seasons_path=DEMO_SEASONS):
     """Keep only what pruning needs: excluded crops (farm questionnaire) and max cycle days (field
-    questionnaire). The crop history is loaded too, for the scoring."""
+    questionnaire). The crop history and all answers are kept too, for the scoring."""
     general = load_json(general_path)["answers"]
     field_answers = load_json(field_path)["answers"]
     return {
         "excluded_crops": [c for c in general.get("excludedCrops", []) if c != "none"],   # ["none"] = no exclusions
         "max_days": field_answers.get("maxDays"),
         "seasons": load_json(seasons_path),
+        "general": general,            # all farm-questionnaire answers (priorities, risk, machinery ...)
+        "field": field_answers,        # all field-questionnaire answers (salinity, drainage, frost ...)
     }
 
 #------------------------------------------------------#  
@@ -104,7 +107,71 @@ def apply_salinity(crops, result, field=0):
 
 
 #-----------------------Water--------------------------#
+# Irrigation each crop needs in the coming season, after rain, and what it costs:
+#   1. Crop water use (ETc): the crop's FAO water-need range, placed by the season's evaporative demand
+#      (mean daily ET0: 2 mm/day -> water_need_min, 8 mm/day -> water_need_max), and never more than
+#      the season's ET0 itself (a crop can't use more than the reference over a whole season).
+#   2. Effective rain: the part of the rain the roots can use (FAO, Irrigation Water Management manual 3):
+#      per month 0.8 P - 25 if P > 75 mm, else 0.6 P - 10.
+#   3. Net irrigation = ETc - effective rain;  gross = net / IRRIGATION_EFFICIENCY (losses of the method).
+#   4. Price per m3: from the farmer's last season (irrigation cost / water that crop needed), kept inside
+#      the range of Greek irrigation prices; DEFAULT_WATER_PRICE if there is no history.
+SEASON_DAYS = 182                      # the 6-month window of all_field_data.py
+IRRIGATION_EFFICIENCY = 0.75           # sprinkler; drip ~0.9, furrow ~0.6
+DEFAULT_WATER_PRICE = 0.10             # €/m3
+WATER_PRICE_RANGE = (0.054, 0.645)     # €/m3, range of irrigation water prices reported for Greece
+
+
+def effective_rain(season_rain_mm, months=6):
+    """FAO effective rainfall, from the season total (spread evenly over the months)."""
+    p = season_rain_mm / months
+    per_month = 0.8 * p - 25 if p > 75 else max(0.0, 0.6 * p - 10)
+    return per_month * months
+
+
+def water_price(farmer, crops):
+    """(€/m3, how it was found) from the farmer's most recent season with an irrigation cost."""
+    history = sorted(farmer.get("seasons") or [], key=lambda s: (s.get("season_year") or 0, s.get("sown_on") or ""))
+    for s in reversed(history):
+        cost = (s.get("costs") or {}).get("irrigation_eur_ha")
+        c = crops.get(s.get("crop_id"))
+        if cost and c and c.get("water_need_min") is not None:
+            need_mm = (c["water_need_min"] + c["water_need_max"]) / 2          # that season's rain is unknown
+            m3 = need_mm * 10 / IRRIGATION_EFFICIENCY                         # 1 mm on 1 ha = 10 m3
+            price = min(max(cost / m3, WATER_PRICE_RANGE[0]), WATER_PRICE_RANGE[1])
+            return price, f"farmer's {s['season_year']} {s['crop_id']}: {cost} €/ha / {m3:.0f} m3/ha"
+    return DEFAULT_WATER_PRICE, "default (no irrigation cost in the history)"
+
+
+def water_use(crops, field_info, price):
+    """{crop: ETc, effective rain, net / gross irrigation (mm, m3/ha) and cost (€/ha)}. None if data is missing."""
+    et0, rain = field_info.get("et_et0_mm"), field_info.get("rain_mm")
+    out = {}
+    for name, c in crops.items():
+        row = dict.fromkeys(["etc_mm", "eff_rain_mm", "net_mm", "gross_m3_ha", "cost_eur_ha"])
+        if et0 is not None and c.get("water_need_min") is not None:
+            pos = min(max((et0 / SEASON_DAYS - 2) / (8 - 2), 0), 1)
+            etc = c["water_need_min"] + pos * (c["water_need_max"] - c["water_need_min"])
+            row["etc_mm"] = round(min(etc, et0), 1)
+        if rain is not None:
+            row["eff_rain_mm"] = round(effective_rain(rain), 1)
+        if row["etc_mm"] is not None and row["eff_rain_mm"] is not None:
+            row["net_mm"] = round(max(0.0, row["etc_mm"] - row["eff_rain_mm"]), 1)
+            row["gross_m3_ha"] = round(row["net_mm"] * 10 / IRRIGATION_EFFICIENCY)
+            row["cost_eur_ha"] = round(row["gross_m3_ha"] * price, 2)
+        out[name] = row
+    return out
+
+
+def print_water(water, price, price_source):
+    print(f"\n--- Water (irrigation after rain) ---  price {price:.3f} €/m3 [{price_source}]")
+    for name, w in water.items():
+        print(f"  {name:<14} ETc {w['etc_mm']} mm | effective rain {w['eff_rain_mm']} mm | "
+              f"irrigation {w['net_mm']} mm = {w['gross_m3_ha']} m3/ha | {w['cost_eur_ha']} €/ha")
+
 #---------------------Economics------------------------#
+# Prices, yields and costs per crop: model_data/crop_profiles.json (the farmer's own figures override them,
+# inside scoring.py)
 
 
 #---------------------------------------------------------------------------------------------#
@@ -159,96 +226,37 @@ def prune_crops(crops, field_info, farmer, season):
 #---------------------------------------------------------------------------------------------#
 #                                    SCORING ALGORITHM                                        #
 #---------------------------------------------------------------------------------------------#
-# Demo model, only with the data we already have. Every sub-score is 0..1 (1 = best).
-# A sub-score whose field data is missing is left out of the average.
-#   suitability : how close the field is to the crop's OPTIMAL ranges (temperature, pH, annual rain)
-#                 -> stands in for expected yield
-#   water       : share of the crop's water need covered by the season's rain (1 = no irrigation)
-#   low_need    : lower total water need than the other candidates
-#   rotation    : 1 if different from last season's crop, else 0
-# The economic score uses no prices yet: good yield and little irrigation (pumping cost) stand in for profit.
+# The model is in scoring.py: expected yield, economics (crop_profiles.json / the farmer's own figures),
+# risk, environment, practicality and the farmer's priorities -> the 4 options with % scores and comments.
 
-def range_score(value, opt_min, opt_max, abs_min=None, abs_max=None):
-    """1 inside [opt_min, opt_max], falling linearly to 0 at the absolute limit (or at 50% of the
-    optimal value when no absolute limit is given)."""
-    if value is None or opt_min is None or opt_max is None:
-        return None
-    if opt_min <= value <= opt_max:
-        return 1.0
-    if value < opt_min:
-        floor = abs_min if abs_min is not None and abs_min < opt_min else opt_min * 0.5
-        return max(0.0, (value - floor) / (opt_min - floor))
-    ceil = abs_max if abs_max is not None and abs_max > opt_max else opt_max * 1.5
-    return max(0.0, (ceil - value) / (ceil - opt_max))
+def print_recommendations(rec):
+    print(f"\n=== Recommendations (confidence {rec['confidence_pct']}%) ===")
+    for o in rec["options"]:
+        if not o.get("crop") or "scores_pct" not in o:
+            print(f"  {o['title']:<34} {o.get('crop') or '-'}: {o.get('comment', '')}")
+            continue
+        s, e = o["scores_pct"], o["economics_eur_ha"] or {}
+        print(f"  {o['title']:<34} {o['crop']:<12} overall {s['overall']}% | economic {s['economic']}% | "
+              f"environmental {s['environmental']}% | margin {e.get('margin_eur_ha')} €/ha")
+        for w in o["warnings"]:
+            print(f"      !! {w}")
 
-
-def mean(values):
-    values = [v for v in values if v is not None]
-    return sum(values) / len(values) if values else None
-
-
-def last_crop(farmer):
-    """crop_id of the most recent season in the farmer's crop history, or None."""
-    seasons = sorted(farmer.get("seasons") or [], key=lambda s: (s.get("season_year") or 0, s.get("sown_on") or ""))
-    return seasons[-1]["crop_id"] if seasons else None
-
-
-def score_crop(c, field_info, previous):
-    months = [v for k, v in field_info.items() if k.startswith("temp_month_") and v is not None]
-    temp = mean([range_score(t, c.get("temp_opt_min"), c.get("temp_opt_max"), c.get("temp_min"), c.get("temp_max"))
-                 for t in months])
-    ph = range_score(field_info.get("soil_ph_0_30cm"), c.get("pc_opt_min"), c.get("pc_opt_max"),
-                     c.get("pH_min"), c.get("pH_max"))
-    rain = range_score(field_info.get("rain_annual_mm"), c.get("annual_rain_opt_min"), c.get("annual_rain_opt_max"))
-
-    need = mean([c.get("water_need_min"), c.get("water_need_max")])        # mm per growing season
-    season_rain = field_info.get("rain_mm")
-    irrigation = max(0.0, need - season_rain) if need is not None and season_rain is not None else None
-    water = 1 - irrigation / need if irrigation is not None and need else None
-
-    return {"suitability": mean([temp, ph, rain]), "water": water, "need_mm": need,
-            "irrigation_mm": irrigation, "rotation": 0.0 if c["name"] == previous else 1.0}
-
-
-def score_crops(crops, field_info, farmer):
-    """{crop: sub-scores + economic / environmental / mixed score}"""
-    previous = last_crop(farmer)
-    scores = {name: score_crop(c, field_info, previous) for name, c in crops.items()}
-    needs = [s["need_mm"] for s in scores.values() if s["need_mm"] is not None]
-    for s in scores.values():                                                # low_need: 1 = lowest need
-        span = (max(needs) - min(needs)) if needs else 0
-        s["low_need"] = (1 - (s["need_mm"] - min(needs)) / span) if span and s["need_mm"] is not None else 1.0
-        s["economic"] = mean([s["suitability"]] * 2 + [s["water"]])                     # yield 2/3, pumping 1/3
-        s["environmental"] = mean([s["water"], s["low_need"], s["rotation"]])
-        s["mixed"] = mean([s["economic"], s["environmental"]])
-    return scores
-
-
-def best(scores, key):
-    candidates = {n: s for n, s in scores.items() if s[key] is not None}
-    return max(candidates, key=lambda n: candidates[n][key]) if candidates else None
-
-
-def describe(name, s):
-    fmt = lambda v: "-" if v is None else f"{v:.2f}"
-    irr = "-" if s["irrigation_mm"] is None else f"{s['irrigation_mm']:.0f} mm"
-    return (f"{name}  | economic {fmt(s['economic'])}, environmental {fmt(s['environmental'])}, "
-            f"mixed {fmt(s['mixed'])} | suitability {fmt(s['suitability'])}, irrigation {irr}")
 
 def run_prediction(general_path, field_path, seasons_path, coords_path):
-    """Run one field and return the four choices. Names are whatever the model returns."""
+    """Run one field and return the recommendations (the four options + details)."""
     global removed
     removed = {}
     crops = load_crops()
+    catalogue = load_crops()                     # every crop, also the ones removed later
     farmer = load_farmer(general_path, field_path, seasons_path)
     field = load_field(coords_path)
     field_info = get_field_data(field["points"], field["end"])
     print(f"Field centre: {field_info['centre_lat']}, {field_info['centre_lon']}  |  date: {field_info['date']}")
 
+    # salinity
     request = {"features": [{"coords": field["points"]}], "end": field["end"], "max_cloud": 15}
     result = predict_field(request, gee_project="firld-512718", min_yield=90)
     crops = apply_salinity(crops, result)
-    print(len(crops))
     print_values(field_info, "Rain", "rain_")
     print_values(field_info, "Elevation", "elevation_")
     print_values(field_info, "Soil Data ( Composition, pH)", "soil_")
@@ -256,6 +264,12 @@ def run_prediction(general_path, field_path, seasons_path, coords_path):
     print_values(field_info, "Evapotranspiration", "et_")
     print_values(field_info, "GroundWater", "gw_")
 
+    # water (every crop, so the current crop can be compared too)
+    price, price_source = water_price(farmer, catalogue)
+    water = water_use(catalogue, field_info, price)
+    print_water(water, price, price_source)
+
+    # pruning
     pruned_crops = prune_crops(crops, field_info, farmer, field["season"])
     print(f"\n=== Pruning result (coming season: {field['season']}) ===")
     print(f"Kept ({len(pruned_crops)}): {', '.join(pruned_crops) or 'none'}")
@@ -263,46 +277,31 @@ def run_prediction(general_path, field_path, seasons_path, coords_path):
     for name, reasons in removed.items():
         print(f"  - {name}: {'; '.join(reasons)}")
 
-    scores = score_crops(pruned_crops, field_info, farmer)
-    current = last_crop(farmer)
-    catalogue = load_crops()
-    current_score = score_crops({current: catalogue[current]}, field_info, farmer)[current] \
-        if current in catalogue else None
-    options = {
-        "economic": best(scores, "economic"),
-        "environmental": best(scores, "environmental"),
-        "mixed": best(scores, "mixed"),
-        "current": current,
-    }
-
-    print("\n=== Scores (pruned crops) ===")
-    for name in sorted(scores, key=lambda n: scores[n]["mixed"] or 0, reverse=True):
-        print("  " + describe(name, scores[name]))
-    print("\n=== Options ===")
-    labels = {"economic": "Most economic", "environmental": "Most environmental", "mixed": "Best mix"}
-    for key, label in labels.items():
-        print(f"  {label:<20} {describe(options[key], scores[options[key]]) if options[key] else 'none'}")
-    if current is None:
-        print(f"  {'Continue current':<20} no crop history")
-    elif current_score is None:
-        print(f"  {'Continue current':<20} {current} (not in crops.json)")
-    else:
-        note = f"   !! removed by pruning: {'; '.join(removed[current])}" if current in removed else ""
-        print(f"  {'Continue current':<20} {describe(current, current_score)}{note}")
-    return options
+    # scoring
+    rec = build_recommendations(pruned_crops, catalogue, field_info, farmer, water, price, result, removed, field)
+    # the four crop names at the top level as well, as the earlier output had them
+    by_type = {o["type"]: o.get("crop") for o in rec["options"]}
+    rec = {"economic": by_type.get("economic"), "environmental": by_type.get("environmental"),
+           "mixed": by_type.get("mix"), "current": by_type.get("current"), **rec}
+    print_recommendations(rec)
+    return rec
 
 
 def main():
     parser = argparse.ArgumentParser(description="Score one field and write the four crop choices.")
-    parser.add_argument("--general", required=True, help="general-info.json")
-    parser.add_argument("--field", required=True, help="field-info.json")
-    parser.add_argument("--seasons", required=True, help="farmer-seasons.json")
-    parser.add_argument("--coords", required=True, help="field-coords.json")
-    parser.add_argument("--out", required=True, help="results JSON")
+    # All optional: without them the demo files in model_data/website_data/ are used
+    parser.add_argument("--general", default=str(DEMO_GENERAL_INFO), help="general-info.json")
+    parser.add_argument("--field", default=str(DEMO_FIELD_INFO), help="field-info.json")
+    parser.add_argument("--seasons", default=str(DEMO_SEASONS), help="farmer-seasons.json")
+    parser.add_argument("--coords", default=str(DEMO_FIELD), help="field-coords.json")
+    parser.add_argument("--out", default=str(Path(__file__).parent / "field_data/recommendations.json"),
+                        help="results JSON")
     args = parser.parse_args()
-    options = run_prediction(args.general, args.field, args.seasons, args.coords)
-    Path(args.out).write_text(json.dumps(options, ensure_ascii=False), encoding="utf-8")
+    rec = run_prediction(args.general, args.field, args.seasons, args.coords)
+    Path(args.out).parent.mkdir(parents=True, exist_ok=True)
+    Path(args.out).write_text(json.dumps(rec, indent=2, ensure_ascii=False), encoding="utf-8")
+    print(f"-> {args.out}")
 
 
 if __name__ == "__main__":
-    main() 
+    main()
