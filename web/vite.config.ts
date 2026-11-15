@@ -1,4 +1,5 @@
 import { copyFileSync, createReadStream, existsSync, statSync } from 'node:fs';
+import type { ServerResponse } from 'node:http';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig, type Connect, type Plugin } from 'vite';
@@ -9,7 +10,7 @@ const webDir = fileURLToPath(new URL('.', import.meta.url));
 const presentationPath = resolve(webDir, '../reports/AppPP.pptx');
 const presentationUrl = '/presentation.pptx';
 
-function sendPresentation(req: Connect.IncomingMessage, res: Connect.ServerResponse, next: Connect.NextFunction) {
+function sendPresentation(req: Connect.IncomingMessage, res: ServerResponse, next: Connect.NextFunction) {
   const path = (req.url ?? '').split('?')[0];
   if (path !== presentationUrl || !existsSync(presentationPath)) {
     next();

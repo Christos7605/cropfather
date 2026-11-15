@@ -90,6 +90,13 @@ export const en = {
       winter: 'Winter',
       summer: 'Summer',
       alternatives: 'The other options',
+      recommended: 'Recommended for this season',
+      why: {
+        mix: 'The best balance of income, the land, and the work on your farm.',
+        economic: 'The highest expected margin per hectare.',
+        environmental: 'The least irrigation and fertiliser, with a better rotation.',
+        current: 'The crop you grew last season.',
+      },
       also: 'Also best for {roles}',
       sameAsLead: 'The figures match the recommendation above.',
       scores: 'Scores',
