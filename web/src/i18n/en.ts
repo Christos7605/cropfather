@@ -8,6 +8,8 @@ export const en = {
   common: {
     loading: 'Loading',
     language: 'Language',
+    openMenu: 'Open menu',
+    closeMenu: 'Close menu',
     cancel: 'Cancel',
     guest: 'Guest',
     farmer: 'Farmer',

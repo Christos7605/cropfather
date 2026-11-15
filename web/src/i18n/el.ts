@@ -9,6 +9,8 @@ export const el: Messages = {
   common: {
     loading: 'Φόρτωση',
     language: 'Γλώσσα',
+    openMenu: 'Άνοιγμα μενού',
+    closeMenu: 'Κλείσιμο μενού',
     cancel: 'Ακύρωση',
     guest: 'Επισκέπτης',
     farmer: 'Αγρότης',
