@@ -11,6 +11,7 @@ import { ResetPassword } from './pages/ResetPassword';
 import { Dashboard } from './pages/Dashboard';
 import { Profile } from './pages/Profile';
 import { lazy, Suspense } from 'react';
+import { Analytics } from '@vercel/analytics/react';
 
 const FieldMap = lazy(() => import('./pages/FieldMap').then((m) => ({ default: m.FieldMap })));
 const FieldPage = lazy(() => import('./pages/FieldPage').then((m) => ({ default: m.FieldPage })));
@@ -106,6 +107,7 @@ export default function App() {
 
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
+          <Analytics />
         </BrowserRouter>
       </LanguageProvider>
     </AuthProvider>
